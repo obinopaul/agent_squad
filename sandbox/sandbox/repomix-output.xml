@@ -1,0 +1,770 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+api.py
+README.md
+sandbox.py
+tool_base.py
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="api.py">
+import os
+import urllib.parse
+from typing import Optional
+
+from fastapi import FastAPI, UploadFile, File, HTTPException, APIRouter, Form, Depends, Request
+from fastapi.responses import Response
+from pydantic import BaseModel
+from daytona_sdk import AsyncSandbox
+
+from sandbox.sandbox import get_or_start_sandbox, delete_sandbox
+from utils.logger import logger
+from utils.auth_utils import get_optional_user_id
+from services.supabase import DBConnection
+
+# Initialize shared resources
+router = APIRouter(tags=["sandbox"])
+db = None
+
+def initialize(_db: DBConnection):
+    """Initialize the sandbox API with resources from the main API."""
+    global db
+    db = _db
+    logger.debug("Initialized sandbox API with database connection")
+
+class FileInfo(BaseModel):
+    """Model for file information"""
+    name: str
+    path: str
+    is_dir: bool
+    size: int
+    mod_time: str
+    permissions: Optional[str] = None
+
+def normalize_path(path: str) -> str:
+    """
+    Normalize a path to ensure proper UTF-8 encoding and handling.
+    
+    Args:
+        path: The file path, potentially containing URL-encoded characters
+        
+    Returns:
+        Normalized path with proper UTF-8 encoding
+    """
+    try:
+        # First, ensure the path is properly URL-decoded
+        decoded_path = urllib.parse.unquote(path)
+        
+        # Handle Unicode escape sequences like \u0308
+        try:
+            # Replace Python-style Unicode escapes (\u0308) with actual characters
+            # This handles cases where the Unicode escape sequence is part of the URL
+            import re
+            unicode_pattern = re.compile(r'\\u([0-9a-fA-F]{4})')
+            
+            def replace_unicode(match):
+                hex_val = match.group(1)
+                return chr(int(hex_val, 16))
+            
+            decoded_path = unicode_pattern.sub(replace_unicode, decoded_path)
+        except Exception as unicode_err:
+            logger.warning(f"Error processing Unicode escapes in path '{path}': {str(unicode_err)}")
+        
+        logger.debug(f"Normalized path from '{path}' to '{decoded_path}'")
+        return decoded_path
+    except Exception as e:
+        logger.error(f"Error normalizing path '{path}': {str(e)}")
+        return path  # Return original path if decoding fails
+
+async def verify_sandbox_access(client, sandbox_id: str, user_id: Optional[str] = None):
+    """
+    Verify that a user has access to a specific sandbox based on account membership.
+    
+    Args:
+        client: The Supabase client
+        sandbox_id: The sandbox ID to check access for
+        user_id: The user ID to check permissions for. Can be None for public resource access.
+        
+    Returns:
+        dict: Project data containing sandbox information
+        
+    Raises:
+        HTTPException: If the user doesn't have access to the sandbox or sandbox doesn't exist
+    """
+    # Find the project that owns this sandbox
+    project_result = await client.table('projects').select('*').filter('sandbox->>id', 'eq', sandbox_id).execute()
+    
+    if not project_result.data or len(project_result.data) == 0:
+        raise HTTPException(status_code=404, detail="Sandbox not found")
+    
+    project_data = project_result.data[0]
+
+    if project_data.get('is_public'):
+        return project_data
+    
+    # For private projects, we must have a user_id
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required for this resource")
+    
+    account_id = project_data.get('account_id')
+    
+    # Verify account membership
+    if account_id:
+        account_user_result = await client.schema('basejump').from_('account_user').select('account_role').eq('user_id', user_id).eq('account_id', account_id).execute()
+        if account_user_result.data and len(account_user_result.data) > 0:
+            return project_data
+    
+    raise HTTPException(status_code=403, detail="Not authorized to access this sandbox")
+
+async def get_sandbox_by_id_safely(client, sandbox_id: str) -> AsyncSandbox:
+    """
+    Safely retrieve a sandbox object by its ID, using the project that owns it.
+    
+    Args:
+        client: The Supabase client
+        sandbox_id: The sandbox ID to retrieve
+    
+    Returns:
+        AsyncSandbox: The sandbox object
+        
+    Raises:
+        HTTPException: If the sandbox doesn't exist or can't be retrieved
+    """
+    # Find the project that owns this sandbox
+    project_result = await client.table('projects').select('project_id').filter('sandbox->>id', 'eq', sandbox_id).execute()
+    
+    if not project_result.data or len(project_result.data) == 0:
+        logger.error(f"No project found for sandbox ID: {sandbox_id}")
+        raise HTTPException(status_code=404, detail="Sandbox not found - no project owns this sandbox ID")
+    
+    # project_id = project_result.data[0]['project_id']
+    # logger.debug(f"Found project {project_id} for sandbox {sandbox_id}")
+    
+    try:
+        # Get the sandbox
+        sandbox = await get_or_start_sandbox(sandbox_id)
+        # Extract just the sandbox object from the tuple (sandbox, sandbox_id, sandbox_pass)
+        # sandbox = sandbox_tuple[0]
+            
+        return sandbox
+    except Exception as e:
+        logger.error(f"Error retrieving sandbox {sandbox_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve sandbox: {str(e)}")
+
+@router.post("/sandboxes/{sandbox_id}/files")
+async def create_file(
+    sandbox_id: str, 
+    path: str = Form(...),
+    file: UploadFile = File(...),
+    request: Request = None,
+    user_id: Optional[str] = Depends(get_optional_user_id)
+):
+    """Create a file in the sandbox using direct file upload"""
+    # Normalize the path to handle UTF-8 encoding correctly
+    path = normalize_path(path)
+    
+    logger.debug(f"Received file upload request for sandbox {sandbox_id}, path: {path}, user_id: {user_id}")
+    client = await db.client
+    
+    # Verify the user has access to this sandbox
+    await verify_sandbox_access(client, sandbox_id, user_id)
+    
+    try:
+        # Get sandbox using the safer method
+        sandbox = await get_sandbox_by_id_safely(client, sandbox_id)
+        
+        # Read file content directly from the uploaded file
+        content = await file.read()
+        
+        # Create file using raw binary content
+        await sandbox.fs.upload_file(content, path)
+        logger.debug(f"File created at {path} in sandbox {sandbox_id}")
+        
+        return {"status": "success", "created": True, "path": path}
+    except Exception as e:
+        logger.error(f"Error creating file in sandbox {sandbox_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/sandboxes/{sandbox_id}/files")
+async def list_files(
+    sandbox_id: str, 
+    path: str,
+    request: Request = None,
+    user_id: Optional[str] = Depends(get_optional_user_id)
+):
+    """List files and directories at the specified path"""
+    # Normalize the path to handle UTF-8 encoding correctly
+    path = normalize_path(path)
+    
+    logger.debug(f"Received list files request for sandbox {sandbox_id}, path: {path}, user_id: {user_id}")
+    client = await db.client
+    
+    # Verify the user has access to this sandbox
+    await verify_sandbox_access(client, sandbox_id, user_id)
+    
+    try:
+        # Get sandbox using the safer method
+        sandbox = await get_sandbox_by_id_safely(client, sandbox_id)
+        
+        # List files
+        files = await sandbox.fs.list_files(path)
+        result = []
+        
+        for file in files:
+            # Convert file information to our model
+            # Ensure forward slashes are used for paths, regardless of OS
+            full_path = f"{path.rstrip('/')}/{file.name}" if path != '/' else f"/{file.name}"
+            file_info = FileInfo(
+                name=file.name,
+                path=full_path, # Use the constructed path
+                is_dir=file.is_dir,
+                size=file.size,
+                mod_time=str(file.mod_time),
+                permissions=getattr(file, 'permissions', None)
+            )
+            result.append(file_info)
+        
+        logger.debug(f"Successfully listed {len(result)} files in sandbox {sandbox_id}")
+        return {"files": [file.dict() for file in result]}
+    except Exception as e:
+        logger.error(f"Error listing files in sandbox {sandbox_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/sandboxes/{sandbox_id}/files/content")
+async def read_file(
+    sandbox_id: str, 
+    path: str,
+    request: Request = None,
+    user_id: Optional[str] = Depends(get_optional_user_id)
+):
+    """Read a file from the sandbox"""
+    # Normalize the path to handle UTF-8 encoding correctly
+    original_path = path
+    path = normalize_path(path)
+    
+    logger.debug(f"Received file read request for sandbox {sandbox_id}, path: {path}, user_id: {user_id}")
+    if original_path != path:
+        logger.debug(f"Normalized path from '{original_path}' to '{path}'")
+    
+    client = await db.client
+    
+    # Verify the user has access to this sandbox
+    await verify_sandbox_access(client, sandbox_id, user_id)
+    
+    try:
+        # Get sandbox using the safer method
+        sandbox = await get_sandbox_by_id_safely(client, sandbox_id)
+        
+        # Read file directly - don't check existence first with a separate call
+        try:
+            content = await sandbox.fs.download_file(path)
+        except Exception as download_err:
+            logger.error(f"Error downloading file {path} from sandbox {sandbox_id}: {str(download_err)}")
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Failed to download file: {str(download_err)}"
+            )
+        
+        # Return a Response object with the content directly
+        filename = os.path.basename(path)
+        logger.debug(f"Successfully read file {filename} from sandbox {sandbox_id}")
+        
+        # Ensure proper encoding by explicitly using UTF-8 for the filename in Content-Disposition header
+        # This applies RFC 5987 encoding for the filename to support non-ASCII characters
+        encoded_filename = filename.encode('utf-8').decode('latin-1')
+        content_disposition = f"attachment; filename*=UTF-8''{encoded_filename}"
+        
+        return Response(
+            content=content,
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": content_disposition}
+        )
+    except HTTPException:
+        # Re-raise HTTP exceptions without wrapping
+        raise
+    except Exception as e:
+        logger.error(f"Error reading file in sandbox {sandbox_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/sandboxes/{sandbox_id}/files")
+async def delete_file(
+    sandbox_id: str, 
+    path: str,
+    request: Request = None,
+    user_id: Optional[str] = Depends(get_optional_user_id)
+):
+    """Delete a file from the sandbox"""
+    # Normalize the path to handle UTF-8 encoding correctly
+    path = normalize_path(path)
+    
+    logger.debug(f"Received file delete request for sandbox {sandbox_id}, path: {path}, user_id: {user_id}")
+    client = await db.client
+    
+    # Verify the user has access to this sandbox
+    await verify_sandbox_access(client, sandbox_id, user_id)
+    
+    try:
+        # Get sandbox using the safer method
+        sandbox = await get_sandbox_by_id_safely(client, sandbox_id)
+        
+        # Delete file
+        await sandbox.fs.delete_file(path)
+        logger.debug(f"File deleted at {path} in sandbox {sandbox_id}")
+        
+        return {"status": "success", "deleted": True, "path": path}
+    except Exception as e:
+        logger.error(f"Error deleting file in sandbox {sandbox_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/sandboxes/{sandbox_id}")
+async def delete_sandbox_route(
+    sandbox_id: str,
+    request: Request = None,
+    user_id: Optional[str] = Depends(get_optional_user_id)
+):
+    """Delete an entire sandbox"""
+    logger.debug(f"Received sandbox delete request for sandbox {sandbox_id}, user_id: {user_id}")
+    client = await db.client
+    
+    # Verify the user has access to this sandbox
+    await verify_sandbox_access(client, sandbox_id, user_id)
+    
+    try:
+        # Delete the sandbox using the sandbox module function
+        await delete_sandbox(sandbox_id)
+        
+        return {"status": "success", "deleted": True, "sandbox_id": sandbox_id}
+    except Exception as e:
+        logger.error(f"Error deleting sandbox {sandbox_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Should happen on server-side fully
+@router.post("/project/{project_id}/sandbox/ensure-active")
+async def ensure_project_sandbox_active(
+    project_id: str,
+    request: Request = None,
+    user_id: Optional[str] = Depends(get_optional_user_id)
+):
+    """
+    Ensure that a project's sandbox is active and running.
+    Checks the sandbox status and starts it if it's not running.
+    """
+    logger.debug(f"Received ensure sandbox active request for project {project_id}, user_id: {user_id}")
+    client = await db.client
+    
+    # Find the project and sandbox information
+    project_result = await client.table('projects').select('*').eq('project_id', project_id).execute()
+    
+    if not project_result.data or len(project_result.data) == 0:
+        logger.error(f"Project not found: {project_id}")
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    project_data = project_result.data[0]
+    
+    # For public projects, no authentication is needed
+    if not project_data.get('is_public'):
+        # For private projects, we must have a user_id
+        if not user_id:
+            logger.error(f"Authentication required for private project {project_id}")
+            raise HTTPException(status_code=401, detail="Authentication required for this resource")
+            
+        account_id = project_data.get('account_id')
+        
+        # Verify account membership
+        if account_id:
+            account_user_result = await client.schema('basejump').from_('account_user').select('account_role').eq('user_id', user_id).eq('account_id', account_id).execute()
+            if not (account_user_result.data and len(account_user_result.data) > 0):
+                logger.error(f"User {user_id} not authorized to access project {project_id}")
+                raise HTTPException(status_code=403, detail="Not authorized to access this project")
+    
+    try:
+        # Get sandbox ID from project data
+        sandbox_info = project_data.get('sandbox', {})
+        if not sandbox_info.get('id'):
+            raise HTTPException(status_code=404, detail="No sandbox found for this project")
+            
+        sandbox_id = sandbox_info['id']
+        
+        # Get or start the sandbox
+        logger.debug(f"Ensuring sandbox is active for project {project_id}")
+        sandbox = await get_or_start_sandbox(sandbox_id)
+        
+        logger.debug(f"Successfully ensured sandbox {sandbox_id} is active for project {project_id}")
+        
+        return {
+            "status": "success", 
+            "sandbox_id": sandbox_id,
+            "message": "Sandbox is active"
+        }
+    except Exception as e:
+        logger.error(f"Error ensuring sandbox is active for project {project_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+</file>
+
+<file path="README.md">
+# Agent Sandbox
+
+This directory contains the agent sandbox implementation - a Docker-based virtual environment that agents use as their own computer to execute tasks, access the web, and manipulate files.
+
+## Overview
+
+The sandbox provides a complete containerized Linux environment with:
+- Chrome browser for web interactions
+- VNC server for accessing the Web User
+- Web server for serving content (port 8080) -> loading html files from the /workspace directory
+- Full file system access
+- Full sudo access
+
+## Customizing the Sandbox
+
+You can modify the sandbox environment for development or to add new capabilities:
+
+1. Edit files in the `docker/` directory
+2. Build a custom image:
+   ```
+   cd backend/sandbox/docker
+   docker compose build
+   docker push kortix/suna:0.1.3.12
+   ```
+3. Test your changes locally using docker-compose
+
+## Using a Custom Snapshot
+
+To use your custom sandbox snapshot:
+
+1. Change the `image` parameter in `docker-compose.yml` (that defines the image name `kortix/suna:___`)
+2. Build and create a snapshot in Daytona with the same name
+3. Update the snapshot name in `backend/sandbox/sandbox.py` in the `create_sandbox` function
+4. If using Daytona for deployment, update the snapshot reference there as well
+
+## Publishing New Versions
+
+When publishing a new version of the sandbox:
+
+1. Update the version number in `docker-compose.yml` (e.g., from `0.1.2` to `0.1.3`)
+2. Build the new image: `docker compose build`
+3. Push the new version: `docker push kortix/suna:0.1.3`
+4. Create a new snapshot in Daytona with the same name
+5. Update all references to the snapshot version in:
+   - `backend/utils/config.py`
+   - Daytona snapshots
+   - Any other services using this snapshot
+</file>
+
+<file path="sandbox.py">
+from daytona_sdk import AsyncDaytona, DaytonaConfig, CreateSandboxFromSnapshotParams, AsyncSandbox, SessionExecuteRequest, Resources, SandboxState
+from dotenv import load_dotenv
+from utils.logger import logger
+from utils.config import config
+from utils.config import Configuration
+
+load_dotenv()
+
+logger.debug("Initializing Daytona sandbox configuration")
+daytona_config = DaytonaConfig(
+    api_key=config.DAYTONA_API_KEY,
+    api_url=config.DAYTONA_SERVER_URL, 
+    target=config.DAYTONA_TARGET,
+)
+
+if daytona_config.api_key:
+    logger.debug("Daytona API key configured successfully")
+else:
+    logger.warning("No Daytona API key found in environment variables")
+
+if daytona_config.api_url:
+    logger.debug(f"Daytona API URL set to: {daytona_config.api_url}")
+else:
+    logger.warning("No Daytona API URL found in environment variables")
+
+if daytona_config.target:
+    logger.debug(f"Daytona target set to: {daytona_config.target}")
+else:
+    logger.warning("No Daytona target found in environment variables")
+
+daytona = AsyncDaytona(daytona_config)
+
+async def get_or_start_sandbox(sandbox_id: str) -> AsyncSandbox:
+    """Retrieve a sandbox by ID, check its state, and start it if needed."""
+    
+    logger.debug(f"Getting or starting sandbox with ID: {sandbox_id}")
+
+    try:
+        sandbox = await daytona.get(sandbox_id)
+        
+        # Check if sandbox needs to be started
+        if sandbox.state == SandboxState.ARCHIVED or sandbox.state == SandboxState.STOPPED:
+            logger.debug(f"Sandbox is in {sandbox.state} state. Starting...")
+            try:
+                await daytona.start(sandbox)
+                # Wait a moment for the sandbox to initialize
+                # sleep(5)
+                # Refresh sandbox state after starting
+                sandbox = await daytona.get(sandbox_id)
+                
+                # Start supervisord in a session when restarting
+                await start_supervisord_session(sandbox)
+            except Exception as e:
+                logger.error(f"Error starting sandbox: {e}")
+                raise e
+        
+        logger.debug(f"Sandbox {sandbox_id} is ready")
+        return sandbox
+        
+    except Exception as e:
+        logger.error(f"Error retrieving or starting sandbox: {str(e)}")
+        raise e
+
+async def start_supervisord_session(sandbox: AsyncSandbox):
+    """Start supervisord in a session."""
+    session_id = "supervisord-session"
+    try:
+        logger.debug(f"Creating session {session_id} for supervisord")
+        await sandbox.process.create_session(session_id)
+        
+        # Execute supervisord command
+        await sandbox.process.execute_session_command(session_id, SessionExecuteRequest(
+            command="exec /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf",
+            var_async=True
+        ))
+        logger.debug(f"Supervisord started in session {session_id}")
+    except Exception as e:
+        logger.error(f"Error starting supervisord session: {str(e)}")
+        raise e
+
+async def create_sandbox(password: str, project_id: str = None) -> AsyncSandbox:
+    """Create a new sandbox with all required services configured and running."""
+    
+    logger.debug("Creating new Daytona sandbox environment")
+    logger.debug("Configuring sandbox with snapshot and environment variables")
+    
+    labels = None
+    if project_id:
+        logger.debug(f"Using sandbox_id as label: {project_id}")
+        labels = {'id': project_id}
+        
+    params = CreateSandboxFromSnapshotParams(
+        snapshot=Configuration.SANDBOX_SNAPSHOT_NAME,
+        public=True,
+        labels=labels,
+        env_vars={
+            "CHROME_PERSISTENT_SESSION": "true",
+            "RESOLUTION": "1048x768x24",
+            "RESOLUTION_WIDTH": "1048",
+            "RESOLUTION_HEIGHT": "768",
+            "VNC_PASSWORD": password,
+            "ANONYMIZED_TELEMETRY": "false",
+            "CHROME_PATH": "",
+            "CHROME_USER_DATA": "",
+            "CHROME_DEBUGGING_PORT": "9222",
+            "CHROME_DEBUGGING_HOST": "localhost",
+            "CHROME_CDP": ""
+        },
+        resources=Resources(
+            cpu=2,
+            memory=4,
+            disk=5,
+        ),
+        auto_stop_interval=15,
+        auto_archive_interval=30,
+    )
+    
+    # Create the sandbox
+    sandbox = await daytona.create(params)
+    logger.debug(f"Sandbox created with ID: {sandbox.id}")
+    
+    # Start supervisord in a session for new sandbox
+    await start_supervisord_session(sandbox)
+    
+    logger.debug(f"Sandbox environment successfully initialized")
+    return sandbox
+
+async def delete_sandbox(sandbox_id: str) -> bool:
+    """Delete a sandbox by its ID."""
+    logger.debug(f"Deleting sandbox with ID: {sandbox_id}")
+
+    try:
+        # Get the sandbox
+        sandbox = await daytona.get(sandbox_id)
+        
+        # Delete the sandbox
+        await daytona.delete(sandbox)
+        
+        logger.debug(f"Successfully deleted sandbox {sandbox_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting sandbox {sandbox_id}: {str(e)}")
+        raise e
+</file>
+
+<file path="tool_base.py">
+from typing import Optional
+import uuid
+import asyncio
+
+from agentpress.thread_manager import ThreadManager
+from agentpress.tool import Tool
+from daytona_sdk import AsyncSandbox
+from sandbox.sandbox import get_or_start_sandbox, create_sandbox, delete_sandbox
+from utils.logger import logger
+from utils.files_utils import clean_path
+from utils.config import config
+
+class SandboxToolsBase(Tool):
+    """Base class for all sandbox tools that provides project-based sandbox access."""
+    
+    # Class variable to track if sandbox URLs have been printed
+    _urls_printed = False
+    
+    def __init__(self, project_id: str, thread_manager: Optional[ThreadManager] = None):
+        super().__init__()
+        self.project_id = project_id
+        self.thread_manager = thread_manager
+        self.workspace_path = "/workspace"
+        self._sandbox = None
+        self._sandbox_id = None
+        self._sandbox_pass = None
+
+    async def _ensure_sandbox(self) -> AsyncSandbox:
+        """Ensure we have a valid sandbox instance, retrieving it from the project if needed.
+
+        If the project does not yet have a sandbox, create it lazily and persist
+        the metadata to the `projects` table so subsequent calls can reuse it.
+        """
+        if self._sandbox is None:
+            try:
+                # Get database client
+                client = await self.thread_manager.db.client
+
+                # Get project data
+                project = await client.table('projects').select('*').eq('project_id', self.project_id).execute()
+                if not project.data or len(project.data) == 0:
+                    raise ValueError(f"Project {self.project_id} not found")
+
+                project_data = project.data[0]
+                sandbox_info = project_data.get('sandbox') or {}
+
+                # If there is no sandbox recorded for this project, create one lazily
+                if not sandbox_info.get('id'):
+                    logger.debug(f"No sandbox recorded for project {self.project_id}; creating lazily")
+                    sandbox_pass = str(uuid.uuid4())
+                    sandbox_obj = await create_sandbox(sandbox_pass, self.project_id)
+                    sandbox_id = sandbox_obj.id
+                    
+                    # Wait 5 seconds for services to start up
+                    logger.info(f"Waiting 5 seconds for sandbox {sandbox_id} services to initialize...")
+                    await asyncio.sleep(5)
+                    
+                    # Gather preview links and token (best-effort parsing)
+                    try:
+                        vnc_link = await sandbox_obj.get_preview_link(6080)
+                        website_link = await sandbox_obj.get_preview_link(8080)
+                        vnc_url = vnc_link.url if hasattr(vnc_link, 'url') else str(vnc_link).split("url='")[1].split("'")[0]
+                        website_url = website_link.url if hasattr(website_link, 'url') else str(website_link).split("url='")[1].split("'")[0]
+                        token = vnc_link.token if hasattr(vnc_link, 'token') else (str(vnc_link).split("token='")[1].split("'")[0] if "token='" in str(vnc_link) else None)
+                    except Exception:
+                        # If preview link extraction fails, still proceed but leave fields None
+                        logger.warning(f"Failed to extract preview links for sandbox {sandbox_id}", exc_info=True)
+                        vnc_url = None
+                        website_url = None
+                        token = None
+
+                    # Persist sandbox metadata to project record
+                    update_result = await client.table('projects').update({
+                        'sandbox': {
+                            'id': sandbox_id,
+                            'pass': sandbox_pass,
+                            'vnc_preview': vnc_url,
+                            'sandbox_url': website_url,
+                            'token': token
+                        }
+                    }).eq('project_id', self.project_id).execute()
+
+                    if not update_result.data:
+                        # Cleanup created sandbox if DB update failed
+                        try:
+                            await delete_sandbox(sandbox_id)
+                        except Exception:
+                            logger.error(f"Failed to delete sandbox {sandbox_id} after DB update failure", exc_info=True)
+                        raise Exception("Database update failed when storing sandbox metadata")
+
+                    # Store local metadata and ensure sandbox is ready
+                    self._sandbox_id = sandbox_id
+                    self._sandbox_pass = sandbox_pass
+                    self._sandbox = await get_or_start_sandbox(self._sandbox_id)
+                else:
+                    # Use existing sandbox metadata
+                    self._sandbox_id = sandbox_info['id']
+                    self._sandbox_pass = sandbox_info.get('pass')
+                    self._sandbox = await get_or_start_sandbox(self._sandbox_id)
+
+            except Exception as e:
+                logger.error(f"Error retrieving/creating sandbox for project {self.project_id}: {str(e)}", exc_info=True)
+                raise e
+
+        return self._sandbox
+
+    @property
+    def sandbox(self) -> AsyncSandbox:
+        """Get the sandbox instance, ensuring it exists."""
+        if self._sandbox is None:
+            raise RuntimeError("Sandbox not initialized. Call _ensure_sandbox() first.")
+        return self._sandbox
+
+    @property
+    def sandbox_id(self) -> str:
+        """Get the sandbox ID, ensuring it exists."""
+        if self._sandbox_id is None:
+            raise RuntimeError("Sandbox ID not initialized. Call _ensure_sandbox() first.")
+        return self._sandbox_id
+
+    def clean_path(self, path: str) -> str:
+        """Clean and normalize a path to be relative to /workspace."""
+        cleaned_path = clean_path(path, self.workspace_path)
+        logger.debug(f"Cleaned path: {path} -> {cleaned_path}")
+        return cleaned_path
+</file>
+
+</files>
