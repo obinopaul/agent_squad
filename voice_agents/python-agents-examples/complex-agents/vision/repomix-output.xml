@@ -1,0 +1,277 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+agent.py
+README.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="agent.py">
+"""
+---
+title: Vision-Enabled Agent
+category: complex-agents
+tags: [video_stream, grok_vision, x_ai, frame_capture, image_content]
+difficulty: intermediate
+description: Agent with camera vision capabilities using Grok-2 Vision model
+demonstrates:
+  - Video stream processing from remote participants
+  - Frame buffering from video tracks
+  - X.AI Grok-2 Vision model integration
+  - Dynamic video track subscription
+  - Image content injection into chat context
+  - Track publication event handling
+---
+"""
+
+import asyncio
+import logging
+from pathlib import Path
+from dotenv import load_dotenv
+from livekit import rtc
+from livekit.agents import JobContext, WorkerOptions, cli, get_job_context
+from livekit.agents.llm import function_tool, ImageContent, ChatContext, ChatMessage
+from livekit.agents.voice import Agent, AgentSession, RunContext
+from livekit.plugins import deepgram, openai, silero, rime
+
+logger = logging.getLogger("vision-agent")
+logger.setLevel(logging.INFO)
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+
+class VisionAgent(Agent):
+    def __init__(self) -> None:
+        self._latest_frame = None
+        self._video_stream = None
+        self._tasks = []
+        super().__init__(
+            instructions="""
+                You are an assistant communicating through voice with vision capabilities.
+                You can see what the user is showing you through their camera.
+                Don't use any unpronouncable characters.
+            """,
+            stt=deepgram.STT(),
+            llm=openai.LLM.with_x_ai(model="grok-2-vision", tool_choice=None),
+            tts=rime.TTS(),
+            vad=silero.VAD.load()
+        )
+
+    async def on_enter(self):
+        room = get_job_context().room
+
+        # Find the first video track (if any) from the remote participant
+        if room.remote_participants:
+            remote_participant = list(room.remote_participants.values())[0]
+            video_tracks = [
+                publication.track
+                for publication in list(remote_participant.track_publications.values())
+                if publication.track and publication.track.kind == rtc.TrackKind.KIND_VIDEO
+            ]
+            if video_tracks:
+                self._create_video_stream(video_tracks[0])
+
+        # Watch for new video tracks not yet published
+        @room.on("track_subscribed")
+        def on_track_subscribed(track: rtc.Track, publication: rtc.RemoteTrackPublication, participant: rtc.RemoteParticipant):
+            if track.kind == rtc.TrackKind.KIND_VIDEO:
+                self._create_video_stream(track)
+
+    async def on_user_turn_completed(self, turn_ctx: ChatContext, new_message: ChatMessage) -> None:
+        # Add the latest video frame, if any, to the new message
+        if self._latest_frame:
+            new_message.content.append(ImageContent(image=self._latest_frame))
+            self._latest_frame = None
+
+    # Helper method to buffer the latest video frame from the user's track
+    def _create_video_stream(self, track: rtc.Track):
+        # Close any existing stream (we only want one at a time)
+        if self._video_stream is not None:
+            self._video_stream.close()
+
+        # Create a new stream to receive frames
+        self._video_stream = rtc.VideoStream(track)
+        async def read_stream():
+            async for event in self._video_stream:
+                # Store the latest frame for use later
+                self._latest_frame = event.frame
+
+        # Store the async task
+        task = asyncio.create_task(read_stream())
+        task.add_done_callback(lambda t: self._tasks.remove(t))
+        self._tasks.append(task)
+
+async def entrypoint(ctx: JobContext):
+    session = AgentSession()
+
+    await session.start(
+        agent=VisionAgent(),
+        room=ctx.room
+    )
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+</file>
+
+<file path="README.md">
+# Vision Agent
+
+A multimodal voice assistant with vision capabilities that can see and discuss what users show through their camera using LiveKit's voice agents.
+
+## Overview
+
+**VisionAgent** - A voice-enabled AI assistant that combines speech interaction with computer vision, allowing users to show objects, documents, or scenes through their camera and have natural conversations about what the agent sees.
+
+## Features
+
+- **Computer Vision Integration**: Processes video frames from user's camera in real-time
+- **Multimodal Conversation**: Combines visual context with voice interaction
+- **Automatic Frame Capture**: Buffers the latest video frame when users speak
+- **Multi-Track Support**: Handles video streams from remote participants
+- **Voice-Enabled**: Built using LiveKit's voice capabilities with support for:
+  - Speech-to-Text (STT) using Deepgram
+  - Large Language Model (LLM) using X.AI's Grok-2-Vision model
+  - Text-to-Speech (TTS) using Rime
+  - Voice Activity Detection (VAD) using Silero
+- **Modern Web Interface**: Next.js frontend with video sharing capabilities
+
+## How It Works
+
+1. User connects to the LiveKit room through the web interface
+2. User enables their camera to share video with the agent
+3. The agent subscribes to the user's video track automatically
+4. When the user speaks, the agent captures the current video frame
+5. The captured frame is added to the conversation context along with the transcribed speech
+6. Grok-2-Vision processes both the visual and textual input
+7. The agent responds with voice, able to describe and discuss what it sees
+8. Users can show different objects or scenes and ask questions about them
+
+## Prerequisites
+
+- Python 3.10+
+- `livekit-agents`>=1.0
+- LiveKit account and credentials
+- API keys for:
+  - X.AI (for Grok-2-Vision model access)
+  - Deepgram (for speech-to-text)
+  - Rime (for text-to-speech)
+- Node.js and pnpm (for the frontend)
+
+## Installation
+
+1. Clone the repository
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Create a `.env` file in the parent directory with your API credentials:
+   ```
+   LIVEKIT_URL=your_livekit_url
+   LIVEKIT_API_KEY=your_api_key
+   LIVEKIT_API_SECRET=your_api_secret
+   XAI_API_KEY=your_xai_key
+   DEEPGRAM_API_KEY=your_deepgram_key
+   RIME_API_KEY=your_rime_key
+   ```
+
+## Running the Agent
+
+1. Start the agent:
+   ```bash
+   python agent.py dev
+   ```
+
+2. In a separate terminal, navigate to the frontend directory and start the Next.js app:
+   ```bash
+   cd agent-vision-frontend
+   pnpm install
+   pnpm dev
+   ```
+
+The application will be available at `http://localhost:3000`. Enable your camera when prompted to start showing things to the agent.
+
+## Architecture Details
+
+### Main Classes
+
+- **VisionAgent**: Core agent class that handles both voice and vision inputs
+- **Video Stream Management**: Automatically subscribes to video tracks from participants
+- **Frame Buffering**: Stores the latest video frame for processing when user speaks
+
+### Vision Processing Flow
+
+1. User's video track is detected when they join or publish video
+2. Agent creates a VideoStream to receive frames
+3. Latest frame is continuously buffered as video streams
+4. When user completes their turn (stops speaking), the current frame is captured
+5. Frame is added as ImageContent to the chat message
+6. Grok-2-Vision processes the multimodal input (text + image)
+7. Agent generates a response based on both visual and conversational context
+
+### Frontend Features
+
+- Video input support with camera selection
+- Screen sharing capabilities
+- Chat interface for text input (optional)
+- Real-time transcription display
+- Modern, responsive UI with dark mode support
+
+### Multimodal Context
+
+The agent maintains conversation context that includes:
+- User's spoken/typed messages
+- Captured video frames at the moment of each user utterance
+- Agent's responses
+- Full conversation history with visual context
+
+## Customization
+
+1. **Change Vision Model**: Replace Grok-2-Vision with other multimodal LLMs like GPT-4o or Claude 3
+2. **Modify Frame Capture Logic**: Adjust when frames are captured (e.g., continuous vs. on-demand)
+3. **Add Visual Analysis Tools**: Integrate specialized vision APIs for OCR, object detection, etc.
+4. **Enhance Agent Instructions**: Update the prompt to specialize in specific visual tasks
+</file>
+
+</files>

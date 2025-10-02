@@ -1,0 +1,1042 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+change_agent_instructions.py
+context_variables.py
+echo_transcriber_agent.py
+exit_message.py
+interrupts_user.py
+label_messages.py
+listen_and_respond.py
+playing_audio.py
+repeater.py
+say_in_voice.py
+tool_calling.py
+uninterruptable/README.md
+uninterruptable/uninterruptable.py
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="change_agent_instructions.py">
+"""
+---
+title: Change Agent Instructions
+category: basics
+tags: [instructions, openai, deepgram]
+difficulty: beginner
+description: Shows how to change the instructions of an agent.
+demonstrates:
+  - Changing agent instructions after the agent has started using `update_instructions`
+---
+"""
+
+import logging
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+from livekit.agents import JobContext, WorkerOptions, cli
+from livekit.agents.voice import Agent, AgentSession
+from livekit.plugins import openai, silero, deepgram
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+
+logger = logging.getLogger("listen-and-respond")
+logger.setLevel(logging.INFO)
+
+class ChangeInstructionsAgent(Agent):
+    def __init__(self) -> None:
+        super().__init__(
+            instructions="""
+                You are a helpful agent. When the user speaks, you listen and respond.
+            """,
+            stt=deepgram.STT(),
+            llm=openai.LLM(model="gpt-4o"),
+            tts=openai.TTS(),
+            vad=silero.VAD.load()
+        )
+    
+    async def on_enter(self):
+        if self.session.participant.name.startswith("sip"):
+            self.update_instructions("""
+                You are a helpful agent speaking on the phone.
+            """)
+        self.session.generate_reply()
+
+async def entrypoint(ctx: JobContext):
+    session = AgentSession()
+
+    await session.start(
+        agent=ChangeInstructionsAgent(),
+        room=ctx.room
+    )
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+</file>
+
+<file path="context_variables.py">
+"""
+---
+title: Context Variables
+category: basics
+tags: [context, variables, openai, deepgram]
+difficulty: beginner
+description: Shows how to give an agent context about the user using simple variables.
+demonstrates:
+  - Using context variables from a simple dictionary
+---
+"""
+
+import logging
+from pathlib import Path
+from dotenv import load_dotenv
+from livekit.agents import JobContext, WorkerOptions, cli
+from livekit.agents.voice import Agent, AgentSession
+from livekit.plugins import openai, deepgram, silero
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+
+logger = logging.getLogger("context-variables")
+logger.setLevel(logging.INFO)
+
+class ContextAgent(Agent):
+    def __init__(self, context_vars=None) -> None:
+        instructions = """
+            You are a helpful agent. The user's name is {name}.
+            They are {age} years old and live in {city}.
+        """
+        
+        if context_vars:
+            instructions = instructions.format(**context_vars)
+            
+        super().__init__(
+            instructions=instructions,
+            stt=deepgram.STT(),
+            llm=openai.LLM(model="gpt-4o"),
+            tts=openai.TTS(),
+            vad=silero.VAD.load()
+        )
+    
+    async def on_enter(self):
+        self.session.generate_reply()
+
+async def entrypoint(ctx: JobContext):
+    context_variables = {
+        "name": "Shayne",
+        "age": 35,
+        "city": "Toronto"
+    }
+
+    session = AgentSession()
+
+    await session.start(
+        agent=ContextAgent(context_vars=context_variables),
+        room=ctx.room
+    )
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+</file>
+
+<file path="echo_transcriber_agent.py">
+"""
+---
+title: Echo Transcriber Agent
+category: basics
+tags: [echo, transcriber, deepgram, silero]
+difficulty: beginner
+description: Shows how to create an agent that can transcribe audio and echo it back.
+demonstrates:
+  - Transcribing audio
+  - Echoing audio back that's stored in a buffer
+---
+"""
+import logging
+import asyncio
+from pathlib import Path
+from typing import AsyncIterable, Optional
+from dotenv import load_dotenv
+from livekit import rtc
+from livekit.agents import JobContext, WorkerOptions, cli
+from livekit.agents.voice import Agent, AgentSession, room_io
+from livekit.agents.vad import VADEventType
+from livekit.plugins import deepgram, silero, noise_cancellation
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+
+logger = logging.getLogger("echo-transcriber")
+logger.setLevel(logging.INFO)
+
+class EchoTranscriberAgent(Agent):
+    def __init__(self) -> None:
+        super().__init__(
+            instructions="You are an echo transcriber that listens and repeats audio.",
+            stt=deepgram.STT(),
+            vad=None,
+            allow_interruptions=False
+        )
+        
+        # We'll set these after initialization
+        self.audio_source = None
+        self.echo_track = None
+        self.ctx = None
+        self.audio_buffer = []
+        self.custom_vad = silero.VAD.load(
+            min_speech_duration=0.2,
+            min_silence_duration=0.6,
+        )
+        self.vad_stream = self.custom_vad.stream()
+        self.is_speaking = False
+        self.is_echoing = False
+        self.audio_format_set = False
+    
+    async def on_enter(self):
+        # Override to prevent default TTS greeting
+        pass
+    
+    def set_context(self, ctx: JobContext):
+        self.ctx = ctx
+    
+    async def setup_audio_output(self):
+        if self.audio_format_set:
+            return
+            
+        self.audio_source = rtc.AudioSource(sample_rate=48000, num_channels=1)
+        self.echo_track = rtc.LocalAudioTrack.create_audio_track("echo", self.audio_source)
+        await self.ctx.room.local_participant.publish_track(
+            self.echo_track,
+            rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE),
+        )
+        self.audio_format_set = True
+    
+    async def stt_node(self, audio: AsyncIterable[rtc.AudioFrame], model_settings: Optional[dict] = None) -> Optional[AsyncIterable[str]]:
+        """Intercept audio frames before STT processing"""
+        
+        async def audio_with_buffer():
+            """Pass through audio while processing with VAD and buffering"""
+            first_frame = True
+            async for frame in audio:
+                if first_frame:
+                    await self.setup_audio_output()
+                    first_frame = False
+                
+                if not self.is_echoing:
+                    self.vad_stream.push_frame(frame)
+                    
+                    self.audio_buffer.append(frame)
+                    
+                    if len(self.audio_buffer) > 1000:
+                        self.audio_buffer.pop(0)
+                
+                yield frame
+        
+        return super().stt_node(audio_with_buffer(), model_settings)
+
+async def entrypoint(ctx: JobContext):
+    await ctx.room.local_participant.set_attributes({"lk.agent.state": "listening"})
+    
+    session = AgentSession()
+    agent = EchoTranscriberAgent()
+    agent.set_context(ctx)
+    
+    @session.on("user_input_transcribed")
+    def on_transcript(transcript):
+        if transcript.is_final:
+            logger.info(f"Transcribed: {transcript.transcript}")
+    
+    async def process_vad():
+        """Process VAD events"""
+        async for vad_event in agent.vad_stream:
+            if agent.is_echoing:
+                continue
+                
+            if vad_event.type == VADEventType.START_OF_SPEECH:
+                agent.is_speaking = True
+                logger.info("VAD: Start of speech detected")
+                # Keep only recent frames (last 100 frames ~1 second)
+                if len(agent.audio_buffer) > 100:
+                    agent.audio_buffer = agent.audio_buffer[-100:]
+                    
+            elif vad_event.type == VADEventType.END_OF_SPEECH:
+                agent.is_speaking = False
+                agent.is_echoing = True
+                buffer_size = len(agent.audio_buffer)
+                logger.info(f"VAD: End of speech, echoing {buffer_size} frames")
+                
+                # Set state to speaking
+                await ctx.room.local_participant.set_attributes({"lk.agent.state": "speaking"})
+                
+                # Copy buffer to avoid modification during playback
+                frames_to_play = agent.audio_buffer.copy()
+                agent.audio_buffer.clear()
+                
+                # Play back all buffered audio
+                if agent.audio_source:
+                    for frame in frames_to_play:
+                        await agent.audio_source.capture_frame(frame)
+                else:
+                    logger.error("Audio source not initialized yet")
+                
+                agent.is_echoing = False
+                logger.info("Finished echoing")
+                
+                await ctx.room.local_participant.set_attributes({"lk.agent.state": "listening"})
+    
+    # Start VAD processing
+    vad_task = asyncio.create_task(process_vad())
+    
+    await session.start(
+        agent=agent,
+        room=ctx.room,
+        room_input_options=room_io.RoomInputOptions(
+            noise_cancellation=noise_cancellation.BVC(),
+            audio_sample_rate=48000,
+            audio_num_channels=1,
+        )
+    )
+    
+    # Keep VAD task running
+    await vad_task
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+</file>
+
+<file path="exit_message.py">
+"""
+---
+title: Exit Message
+category: basics
+tags: [exit, message, openai, deepgram]
+difficulty: beginner
+description: Shows how to use the `on_exit` method to take an action when the agent exits.
+demonstrates:
+  - Use the `on_exit` method to take an action when the agent exits
+---
+"""
+import logging
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+from livekit.agents import JobContext, WorkerOptions, cli
+from livekit.agents.voice import Agent, AgentSession
+from livekit.plugins import openai, silero, deepgram
+from livekit.agents.llm import function_tool
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+
+logger = logging.getLogger("listen-and-respond")
+logger.setLevel(logging.INFO)
+
+class GoodbyeAgent(Agent):
+    def __init__(self) -> None:
+        super().__init__(
+            instructions="""
+                You are a helpful agent.
+                When the user wants to stop talking to you, use the end_session function to close the session.
+            """,
+            stt=deepgram.STT(),
+            llm=openai.LLM(model="gpt-4o"),
+            tts=openai.TTS(),
+            vad=silero.VAD.load()
+        )
+
+    @function_tool
+    async def end_session(self):
+        """When the user wants to stop talking to you, use this function to close the session."""
+        await self.session.drain()
+        await self.session.aclose()
+
+    async def on_exit(self):
+        await self.session.say("Goodbye!")
+
+async def entrypoint(ctx: JobContext):
+    session = AgentSession()
+
+    await session.start(
+        agent=GoodbyeAgent(),
+        room=ctx.room
+    )
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+</file>
+
+<file path="interrupts_user.py">
+"""
+---
+title: Interrupt User
+category: basics
+tags: [interrupts, openai, deepgram]
+difficulty: beginner
+description: Shows how to interrupt the user if they try to say more than one sentence.
+demonstrates:
+  - Using the `stt_node` to read the user's input in real time
+  - Setting `allow_interruptions` to `False` to prevent the user from interrupting the agent
+---
+"""
+
+from pathlib import Path
+from typing import AsyncIterable, Optional
+import re
+import logging
+from dotenv import load_dotenv
+from livekit.agents import JobContext, WorkerOptions, cli
+from livekit.agents.voice import Agent, AgentSession
+from livekit.plugins import deepgram, openai
+from livekit import rtc
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class InterruptUserAgent(Agent):
+    def __init__(self) -> None:
+        super().__init__(
+            instructions="""
+                You are a helpful assistant communicating through voice who will interrupt the user if they try to say more than one sentence.
+            """,
+            stt=deepgram.STT(),
+            llm=openai.LLM(model="gpt-4o"),
+            tts=openai.TTS(),
+            allow_interruptions=False
+        )
+        self.text_buffer = ""
+
+    async def stt_node(self, text: AsyncIterable[str], model_settings: Optional[dict] = None) -> Optional[AsyncIterable[rtc.AudioFrame]]:
+        parent_stream = super().stt_node(text, model_settings)
+
+        if parent_stream is None:
+            return None
+
+        async def replay_user_input(text: str):
+            await self.session.say("Let me stop you there, and respond. You said: " + text)
+
+        async def process_stream():
+            async for event in parent_stream:
+                if hasattr(event, 'type') and str(event.type) == "SpeechEventType.FINAL_TRANSCRIPT" and event.alternatives:
+                    transcript = event.alternatives[0].text
+
+                    self.text_buffer += " " + transcript
+                    self.text_buffer = self.text_buffer.strip()
+
+                    sentence_pattern = r'[.!?]+'
+                    if re.search(sentence_pattern, self.text_buffer):
+                        sentences = re.split(sentence_pattern, self.text_buffer)
+
+                        if len(sentences) > 1:
+                            for i in range(len(sentences) - 1):
+                                if sentences[i].strip():
+                                    logger.info(f"Complete sentence detected: '{sentences[i].strip()}'")
+                                    await replay_user_input(sentences[i].strip())
+
+                            self.text_buffer = sentences[-1].strip()
+
+                yield event
+
+        return process_stream()
+    
+    async def on_enter(self):
+        self.session.say("I'll interrupt you after 1 sentence.")
+
+async def entrypoint(ctx: JobContext):
+    session = AgentSession()
+
+    await session.start(
+        agent=InterruptUserAgent(),
+        room=ctx.room
+    )
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+</file>
+
+<file path="label_messages.py">
+"""
+---
+title: Conversation Event Monitoring Agent
+category: basics
+tags: [events, conversation-monitoring, logging, deepgram, openai]
+difficulty: beginner
+description: Shows how to monitor and log conversation events as they occur, useful for debugging and understanding agent-user interactions.
+demonstrates:
+  - Conversation event handling and logging
+---
+"""
+
+import logging
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+from livekit.agents import JobContext, WorkerOptions, cli, ConversationItemAddedEvent
+from livekit.agents.voice import Agent, AgentSession
+from livekit.plugins import openai, silero, deepgram
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+
+logger = logging.getLogger("listen-and-respond")
+logger.setLevel(logging.INFO)
+
+class LabelMessagesAgent(Agent):
+    def __init__(self) -> None:
+        super().__init__(
+            instructions="""
+                You are a helpful agent. When the user speaks, you listen and respond.
+            """,
+            stt=deepgram.STT(),
+            llm=openai.LLM(model="gpt-4o"),
+            tts=openai.TTS(),
+            vad=silero.VAD.load()
+        )
+    
+    async def on_enter(self):
+        self.session.generate_reply()
+
+async def entrypoint(ctx: JobContext):
+    await ctx.connect()
+
+    session = AgentSession()
+
+    @session.on("conversation_item_added")
+    def conversation_item_added(item: ConversationItemAddedEvent):
+        print(item)
+
+    await session.start(
+        agent=LabelMessagesAgent(),
+        room=ctx.room
+    )
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+</file>
+
+<file path="listen_and_respond.py">
+"""
+---
+title: Listen and Respond
+category: basics
+tags: [listen, respond, openai, deepgram]
+difficulty: beginner
+description: Shows how to create an agent that can listen to the user and respond.
+demonstrates:
+  - This is the most basic agent that can listen to the user and respond. This is a good starting point for any agent.
+---
+"""
+
+import logging
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+from livekit.agents import JobContext, WorkerOptions, cli
+from livekit.agents.voice import Agent, AgentSession
+from livekit.plugins import openai, silero, deepgram, inworld
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+
+logger = logging.getLogger("listen-and-respond")
+logger.setLevel(logging.INFO)
+
+class ListenAndRespondAgent(Agent):
+    def __init__(self) -> None:
+        super().__init__(
+            instructions="""
+                You are a helpful agent. When the user speaks, you listen and respond.
+            """,
+            stt=deepgram.STT(),
+            llm=openai.LLM(model="gpt-4o"),
+            tts=inworld.TTS(),
+            vad=silero.VAD.load()
+        )
+    
+    async def on_enter(self):
+        self.session.generate_reply()
+
+async def entrypoint(ctx: JobContext):
+    session = AgentSession()
+
+    await session.start(
+        agent=ListenAndRespondAgent(),
+        room=ctx.room
+    )
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+</file>
+
+<file path="playing_audio.py">
+"""
+---
+title: Playing Audio
+category: basics
+tags: [audio, openai, deepgram]
+difficulty: beginner
+description: Shows how to play audio from a file in an agent.
+demonstrates:
+  - Playing audio from a file
+---
+"""
+import logging
+from pathlib import Path
+import wave
+from dotenv import load_dotenv
+from livekit.agents import JobContext, WorkerOptions, cli
+from livekit.agents.llm import function_tool
+from livekit.agents.voice import Agent, AgentSession, RunContext
+from livekit.plugins import deepgram, openai, silero
+from livekit import rtc
+
+logger = logging.getLogger("function-calling")
+logger.setLevel(logging.INFO)
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+
+class AudioPlayerAgent(Agent):
+    def __init__(self) -> None:
+        super().__init__(
+            instructions="""
+                You are a helpful assistant communicating through voice. Don't use any unpronouncable characters.
+                If asked to play audio, use the `play_audio_file` function.
+            """,
+            stt=deepgram.STT(),
+            llm=openai.LLM(model="gpt-4o"),
+            tts=openai.TTS(),
+            vad=silero.VAD.load()
+        )
+
+    @function_tool
+    async def play_audio_file(self, context: RunContext):
+        audio_path = Path(__file__).parent / "audio.wav"
+        
+        with wave.open(str(audio_path), 'rb') as wav_file:
+            num_channels = wav_file.getnchannels()
+            sample_rate = wav_file.getframerate()
+            frames = wav_file.readframes(wav_file.getnframes())
+        
+        audio_frame = rtc.AudioFrame(
+            data=frames,
+            sample_rate=sample_rate,
+            num_channels=num_channels,
+            samples_per_channel=wav_file.getnframes()
+        )
+        
+        async def audio_generator():
+            yield audio_frame
+        
+        await self.session.say("Playing audio file", audio=audio_generator())
+        
+        return None, "I've played the audio file for you."
+
+    async def on_enter(self):
+        self.session.generate_reply()
+
+async def entrypoint(ctx: JobContext):
+    session = AgentSession()
+
+    await session.start(
+        agent=AudioPlayerAgent(),
+        room=ctx.room
+    )
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+</file>
+
+<file path="repeater.py">
+"""
+---
+title: Repeater
+category: basics
+tags: [repeater, openai, deepgram]
+difficulty: beginner
+description: Shows how to create an agent that can repeat what the user says.
+demonstrates:
+  - Using the `on_user_input_transcribed` event to listen to the user's input
+  - Using the `say` method to respond to the user with the same input
+---
+"""
+from pathlib import Path
+from dotenv import load_dotenv
+from livekit.agents import JobContext, WorkerOptions, cli
+from livekit.agents.voice import Agent, AgentSession
+from livekit.plugins import deepgram, openai
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+
+async def entrypoint(ctx: JobContext):
+    session = AgentSession()
+    
+    @session.on("user_input_transcribed")
+    def on_transcript(transcript):
+        if transcript.is_final:
+            session.say(transcript.transcript)           
+    
+    await session.start(
+        agent=Agent(
+            instructions="You are a helpful assistant that repeats what the user says.",
+            stt=deepgram.STT(),
+            tts=openai.TTS(),
+            allow_interruptions=False
+        ),
+        room=ctx.room
+    )
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+</file>
+
+<file path="say_in_voice.py">
+"""
+---
+title: Function Tool Voice Switching Agent
+category: basics
+tags: [tts, voice-switching, function-tools, inworld, deepgram, openai]
+difficulty: beginner
+description: Demonstrates how to create an agent that can dynamically switch between different voices during a conversation using function tools.
+demonstrates:
+  - Dynamic TTS voice switching
+  - Function tool integration
+  - Multiple TTS provider support (Inworld)
+---
+"""
+
+import logging
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+from livekit.agents import JobContext, WorkerOptions, cli
+from livekit.agents.llm import function_tool
+from livekit.agents.voice import Agent, AgentSession
+from livekit.plugins import openai, silero, deepgram, inworld
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+
+logger = logging.getLogger("listen-and-respond")
+logger.setLevel(logging.INFO)
+
+class SayPhraseInVoiceAgent(Agent):
+    def __init__(self) -> None:
+        super().__init__(
+            instructions="""
+                You are an agent that can say phrases in different voices.
+            """,
+            stt=deepgram.STT(),
+            llm=openai.LLM(model="gpt-4o"),
+            tts=inworld.TTS(voice="Ashley"),
+            vad=silero.VAD.load()
+        )
+
+    async def say_phrase_in_voice(self, phrase, voice="Hades"):
+        self.tts.update_options(voice=voice)
+        await self.session.say(phrase)
+        self.tts.update_options(voice="Ashley")
+
+    @function_tool
+    async def say_phrase_in_voice_tool(self, phrase: str, voice: str = "Ashley"):
+        """Say a phrase in a specific voice"""
+        await self.say_phrase_in_voice(phrase, voice)
+
+    async def on_enter(self):
+        self.session.generate_reply()
+
+async def entrypoint(ctx: JobContext):
+    await ctx.connect()
+
+    session = AgentSession()
+
+    await session.start(
+        agent=SayPhraseInVoiceAgent(),
+        room=ctx.room
+    )
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+</file>
+
+<file path="tool_calling.py">
+"""
+---
+title: Tool Calling
+category: basics
+tags: [tool-calling, openai, deepgram]
+difficulty: beginner
+description: Shows how to use tool calling in an agent.
+demonstrates:
+  - Using the most basic form of tool calling in an agent to print to the console
+---
+"""
+import logging
+from pathlib import Path
+from dotenv import load_dotenv
+from livekit.agents import JobContext, WorkerOptions, cli
+from livekit.agents.llm import function_tool
+from livekit.agents.voice import Agent, AgentSession, RunContext
+from livekit.plugins import deepgram, openai, silero
+
+logger = logging.getLogger("tool-calling")
+logger.setLevel(logging.INFO)
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+
+class ToolCallingAgent(Agent):
+    def __init__(self) -> None:
+        super().__init__(
+            instructions="""
+                You are a helpful assistant communicating through voice. Don't use any unpronouncable characters.
+                Note: If asked to print to the console, use the `print_to_console` function.
+            """,
+            stt=deepgram.STT(),
+            llm=openai.LLM(model="gpt-4o"),
+            tts=openai.TTS(),
+            vad=silero.VAD.load()
+        )
+
+    @function_tool
+    async def print_to_console(self, context: RunContext):
+        print("Console Print Success!")
+        return None, "I've printed to the console."
+
+    async def on_enter(self):
+        self.session.generate_reply()
+
+async def entrypoint(ctx: JobContext):
+    session = AgentSession()
+
+    await session.start(
+        agent=ToolCallingAgent(),
+        room=ctx.room
+    )
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+</file>
+
+<file path="uninterruptable/README.md">
+# Uninterruptable Agent
+
+A voice assistant that demonstrates non-interruptible speech behavior using LiveKit's voice agents, useful for delivering information without interruption.
+
+## Overview
+
+**Uninterruptable Agent** - A voice-enabled assistant configured to complete its responses without being interrupted by user speech, demonstrating the `allow_interruptions=False` configuration option.
+
+## Features
+
+- **Simple Configuration**: Single parameter controls interruption behavior
+- **Voice-Enabled**: Built using LiveKit's voice capabilities with support for:
+  - Speech-to-Text (STT) using Deepgram
+  - Large Language Model (LLM) using OpenAI GPT-4o
+  - Text-to-Speech (TTS) using OpenAI
+  - Voice Activity Detection (VAD) disabled during agent speech
+
+## How It Works
+
+1. User connects to the LiveKit room
+2. Agent automatically starts speaking a long test message
+3. User attempts to interrupt by speaking
+4. Agent continues speaking without stopping
+5. Only after the agent finishes can the user's input be processed
+6. Subsequent responses are also uninterruptible
+
+## Prerequisites
+
+- Python 3.10+
+- `livekit-agents`>=1.0
+- LiveKit account and credentials
+- API keys for:
+  - OpenAI (for LLM and TTS capabilities)
+  - Deepgram (for speech-to-text)
+
+## Installation
+
+1. Clone the repository
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Create a `.env` file in the parent directory with your API credentials:
+   ```
+   LIVEKIT_URL=your_livekit_url
+   LIVEKIT_API_KEY=your_api_key
+   LIVEKIT_API_SECRET=your_api_secret
+   OPENAI_API_KEY=your_openai_key
+   DEEPGRAM_API_KEY=your_deepgram_key
+   ```
+
+## Running the Agent
+
+```bash
+python uninterruptable.py dev
+```
+
+The agent will immediately start speaking a long message. Try interrupting to observe the non-interruptible behavior.
+
+## Architecture Details
+
+### Key Configuration
+
+The critical setting that makes this agent uninterruptible:
+
+```python
+Agent(
+    instructions="...",
+    stt=deepgram.STT(),
+    llm=openai.LLM(model="gpt-4o"),
+    tts=openai.TTS(),
+    allow_interruptions=False  # This prevents interruptions
+)
+```
+
+### Behavior Comparison
+
+| Setting | User Speaks While Agent Talks | Result |
+|---------|------------------------------|---------|
+| `allow_interruptions=True` (default) | Agent stops mid-sentence | User input processed immediately |
+| `allow_interruptions=False` | Agent continues speaking | User input queued until agent finishes |
+
+### Testing Approach
+
+The agent automatically generates a long response on entry to facilitate testing:
+```python
+self.session.generate_reply(user_input="Say something somewhat long and boring so I can test if you're interruptable.")
+```
+
+## Use Cases
+
+### When to Use Uninterruptible Agents
+
+1. **Legal Disclaimers**: Must be read in full without interruption
+2. **Emergency Instructions**: Critical safety information
+3. **Tutorial Steps**: Sequential instructions that shouldn't be skipped
+4. **Terms and Conditions**: Required complete playback
+
+
+## Implementation Patterns
+
+### Selective Non-Interruption
+
+```python
+# Make only critical messages uninterruptible
+async def say_critical(self, message: str):
+    self.allow_interruptions = False
+    await self.session.say(message)
+    self.allow_interruptions = True
+```
+
+## Important Considerations
+
+- **User Experience**: Non-interruptible agents can be frustrating if overused
+- **Message Length**: Keep uninterruptible segments reasonably short
+- **Clear Indication**: Consider informing users when interruption is disabled
+- **Fallback Options**: Provide alternative ways to skip or pause if needed
+
+## Example Interaction
+
+```
+Agent: [Starts long message] "I'm going to tell you a very long and detailed story about..."
+User: "Stop!" [Agent continues]
+Agent: "...and that's why the chicken crossed the road. The moral of the story is..."
+User: "Hey, wait!" [Agent still continues]
+Agent: "...patience is a virtue." [Finally finishes]
+User: "Finally! Can you hear me now?"
+Agent: "Yes, I can hear you now. How can I help?"
+```
+</file>
+
+<file path="uninterruptable/uninterruptable.py">
+"""
+---
+title: Uninterruptable Agent
+category: basics
+tags: [interruptions, allow_interruptions, agent_configuration]
+difficulty: beginner
+description: Agent configured to complete responses without user interruptions
+demonstrates:
+  - Setting allow_interruptions=False in agent configuration
+  - Testing interruption handling behavior
+  - Agent-initiated conversation with on_enter
+---
+"""
+
+# This agent isn't interruptable, so it will keep talking even if the user tries to speak.
+
+from pathlib import Path
+from dotenv import load_dotenv
+from livekit.agents import JobContext, WorkerOptions, cli
+from livekit.agents.voice import Agent, AgentSession
+from livekit.plugins import deepgram, openai
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+
+class UninterruptableAgent(Agent):
+    def __init__(self) -> None:
+        super().__init__(
+            instructions="""
+                You are a helpful assistant communicating through voice who is not interruptable.
+            """,
+            stt=deepgram.STT(),
+            llm=openai.LLM(model="gpt-4o"),
+            tts=openai.TTS(),
+            allow_interruptions=False
+        )
+    
+    async def on_enter(self):
+        self.session.generate_reply(user_input="Say something somewhat long and boring so I can test if you're interruptable.")
+
+async def entrypoint(ctx: JobContext):
+    session = AgentSession()
+
+    await session.start(
+        agent=UninterruptableAgent(),
+        room=ctx.room
+    )
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+</file>
+
+</files>

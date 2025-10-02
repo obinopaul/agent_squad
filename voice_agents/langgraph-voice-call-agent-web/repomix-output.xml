@@ -1,0 +1,3556 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.eslintrc.json
+.gitignore
+.prettierignore
+.prettierrc
+app-config.ts
+app/(app)/layout.tsx
+app/(app)/page.tsx
+app/api/connection-details/route.ts
+app/globals.css
+app/layout.tsx
+components.json
+components/alert-toast.tsx
+components/app.tsx
+components/livekit/agent-control-bar/agent-control-bar.tsx
+components/livekit/agent-control-bar/hooks/use-agent-control-bar.ts
+components/livekit/agent-control-bar/hooks/use-publish-permissions.ts
+components/livekit/agent-tile.tsx
+components/livekit/avatar-tile.tsx
+components/livekit/chat/chat-entry.tsx
+components/livekit/chat/chat-input.tsx
+components/livekit/chat/chat-message-view.tsx
+components/livekit/chat/hooks/utils.ts
+components/livekit/device-select.tsx
+components/livekit/media-tiles.tsx
+components/livekit/track-toggle.tsx
+components/livekit/video-tile.tsx
+components/provider.tsx
+components/session-view.tsx
+components/theme-toggle.tsx
+components/ui/alert.tsx
+components/ui/button.tsx
+components/ui/select.tsx
+components/ui/sonner.tsx
+components/ui/toggle.tsx
+components/welcome.tsx
+eslint.config.mjs
+hooks/useChatAndTranscription.ts
+hooks/useConnectionDetails.ts
+hooks/useDebug.ts
+hooks/useLangGraphChat.ts
+lib/types.ts
+lib/utils.ts
+LICENSE
+next.config.ts
+package.json
+postcss.config.mjs
+README.md
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".eslintrc.json">
+{
+  "extends": ["next/core-web-vitals", "next/typescript", "prettier"]
+}
+</file>
+
+<file path=".gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+</file>
+
+<file path=".prettierignore">
+dist/
+docs/
+node_modules/
+pnpm-lock.yaml
+.next/
+.env*
+</file>
+
+<file path=".prettierrc">
+{
+  "singleQuote": true,
+  "trailingComma": "es5",
+  "semi": true,
+  "tabWidth": 2,
+  "printWidth": 100,
+  "endOfLine": "lf",
+  "importOrder": [
+    "^react",
+    "^next",
+    "^next/(.*)$",
+    "<THIRD_PARTY_MODULES>",
+    "^@[^/](.*)$",
+    "^@/(.*)$",
+    "^[./]"
+  ],
+  "importOrderSeparation": true,
+  "importOrderSortSpecifiers": true,
+  "plugins": ["@trivago/prettier-plugin-sort-imports", "prettier-plugin-tailwindcss"]
+}
+</file>
+
+<file path="app-config.ts">
+import type { AppConfig } from './lib/types';
+
+export const APP_CONFIG_DEFAULTS: AppConfig = {
+  appName: 'LangGraph Voice Agent',
+  pageTitle: 'LangGraph Voice Call Agent',
+  pageDescription:
+    "A real-time voice/call AI agent that lets you talk to a LangGraph agent over LiveKit's real-time communication platform",
+
+  supportsChatInput: true,
+  supportsVideoInput: true,
+  supportsScreenShare: true,
+  isPreConnectBufferEnabled: true,
+
+  logo: '/your-logo.svg',
+  accent: '#002cf2',
+  logoDark: '/your-logo-dark.svg',
+  accentDark: '#1fd5f9',
+  startButtonText: 'Start Voice Call',
+  startChatButtonText: 'Start Chat',
+
+  agentName: undefined,
+};
+</file>
+
+<file path="app/(app)/layout.tsx">
+import { headers } from 'next/headers';
+import Link from 'next/link';
+
+import { getAppConfig } from '@/lib/utils';
+
+interface AppLayoutProps {
+  children: React.ReactNode;
+}
+
+export default async function AppLayout({ children }: AppLayoutProps) {
+  const hdrs = await headers();
+  const { appName } = await getAppConfig(hdrs);
+
+  return (
+    <>
+      <header className="fixed top-0 left-0 z-50 hidden w-full flex-row justify-between p-6 md:flex">
+        <Link
+          href="/"
+          className="text-foreground font-mono text-xs font-bold tracking-wider uppercase"
+        >
+          {appName}
+        </Link>
+      </header>
+      {children}
+    </>
+  );
+}
+</file>
+
+<file path="app/(app)/page.tsx">
+import { headers } from 'next/headers';
+
+import { App } from '@/components/app';
+import { getAppConfig } from '@/lib/utils';
+
+export default async function Page() {
+  const header = await headers();
+  const appConfig = await getAppConfig(header);
+
+  return <App appConfig={appConfig} />;
+}
+</file>
+
+<file path="app/api/connection-details/route.ts">
+import { NextResponse } from 'next/server';
+
+import { AccessToken, type AccessTokenOptions, type VideoGrant } from 'livekit-server-sdk';
+
+import { RoomConfiguration } from '@livekit/protocol';
+
+// NOTE: you are expected to define the following environment variables in `.env.local`:
+const API_KEY = process.env.LIVEKIT_API_KEY;
+const API_SECRET = process.env.LIVEKIT_API_SECRET;
+const LIVEKIT_URL = process.env.LIVEKIT_URL;
+
+// don't cache the results
+export const revalidate = 0;
+
+export type ConnectionDetails = {
+  serverUrl: string;
+  roomName: string;
+  participantName: string;
+  participantToken: string;
+};
+
+export async function POST(req: Request) {
+  try {
+    if (LIVEKIT_URL === undefined) {
+      throw new Error('LIVEKIT_URL is not defined');
+    }
+    if (API_KEY === undefined) {
+      throw new Error('LIVEKIT_API_KEY is not defined');
+    }
+    if (API_SECRET === undefined) {
+      throw new Error('LIVEKIT_API_SECRET is not defined');
+    }
+
+    // Parse agent configuration from request body
+    const body = await req.json();
+    const agentName: string = body?.room_config?.agents?.[0]?.agent_name;
+
+    // Generate participant token
+    const participantName = 'user';
+    const participantIdentity = `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
+    const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
+
+    const participantToken = await createParticipantToken(
+      { identity: participantIdentity, name: participantName },
+      roomName,
+      agentName
+    );
+
+    // Return connection details
+    const data: ConnectionDetails = {
+      serverUrl: LIVEKIT_URL,
+      roomName,
+      participantToken: participantToken,
+      participantName,
+    };
+    const headers = new Headers({
+      'Cache-Control': 'no-store',
+    });
+    return NextResponse.json(data, { headers });
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error(error);
+      return new NextResponse(error.message, { status: 500 });
+    }
+  }
+}
+
+function createParticipantToken(
+  userInfo: AccessTokenOptions,
+  roomName: string,
+  agentName?: string
+): Promise<string> {
+  const at = new AccessToken(API_KEY, API_SECRET, {
+    ...userInfo,
+    ttl: '15m',
+  });
+  const grant: VideoGrant = {
+    room: roomName,
+    roomJoin: true,
+    canPublish: true,
+    canPublishData: true,
+    canSubscribe: true,
+  };
+  at.addGrant(grant);
+
+  if (agentName) {
+    at.roomConfig = new RoomConfiguration({
+      agents: [{ agentName }],
+    });
+  }
+
+  return at.toJwt();
+}
+</file>
+
+<file path="app/globals.css">
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --fg0: #000000;
+  --fg1: #3b3b3b;
+  --fg2: #4d4d4d;
+  --fg3: #636363;
+  --fg4: #707070;
+  --fgSerious: #db1b06;
+  --fgSuccess: #006430;
+  --fgModerate: #a65006;
+  --fgAccent: #002cf2;
+
+  --bg1: #f9f9f6;
+  --bg2: #f3f3f1;
+  --bg3: #e2e2df;
+  --bgSerious: #fae6e6;
+  --bgSerious2: #ffcdc7;
+  --bgSuccess: #d1fadf;
+  --bgModerate: #faedd1;
+  --bgAccent: #b3ccff;
+  --bgAccentPrimary: #e2ebfd;
+
+  --separator1: #dbdbd8;
+  --separator2: #bdbdbb;
+  --separatorSerious: #ffcdc7;
+  --separatorSuccess: #94dcb5;
+  --separatorModerate: #fbd7a0;
+  --separatorAccent: #b3ccff;
+
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #002cf2;
+  --primary-hover: #0020b9;
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: #f3f3f1;
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --fg0: #ffffff;
+  --fg1: #cccccc;
+  --fg2: #b2b2b2;
+  --fg3: #999999;
+  --fg4: #666666;
+  --fgSerious: #ff7566;
+  --fgSuccess: #3bc981;
+  --fgModerate: #ffb752;
+  --fgAccent: #6e9dfe;
+
+  --bg1: #070707;
+  --bg2: #131313;
+  --bg3: #202020;
+  --bgSerious: #1f0e0b;
+  --bgSerious2: #5a1c16;
+  --bgSuccess: #001905;
+  --bgModerate: #1a0e04;
+  --bgAccent: #090c17;
+  --bgAccentPrimary: #0c1640;
+
+  --separator1: #202020;
+  --separator2: #30302f;
+  --separatorSerious: #5a1c16;
+  --separatorSuccess: #003213;
+  --separatorModerate: #3f2208;
+  --separatorAccent: #0c1640;
+
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.269 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: #1fd5f9;
+  --primary-hover: #19a7c7;
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: #131313;
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.371 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.439 0 0);
+}
+
+@theme inline {
+  --color-fg1: var(--fg1);
+  --color-fg2: var(--fg2);
+  --color-fg3: var(--fg3);
+  --color-fg4: var(--fg4);
+  --color-fgSerious: var(--fgSerious);
+  --color-fgSuccess: var(--fgSuccess);
+  --color-fgModerate: var(--fgModerate);
+  --color-fgAccent: var(--fgAccent);
+
+  --color-bg1: var(--bg1);
+  --color-bg2: var(--bg2);
+  --color-bg3: var(--bg3);
+  --color-bgSerious: var(--bgSerious);
+  --color-bgSerious2: var(--bgSerious2);
+  --color-bgSuccess: var(--bgSuccess);
+  --color-bgModerate: var(--bgModerate);
+  --color-bgAccent: var(--bgAccent);
+  --color-bgAccentPrimary: var(--bgAccentPrimary);
+
+  --color-separator1: var(--separator1);
+  --color-separator2: var(--separator2);
+  --color-separatorSerious: var(--separatorSerious);
+  --color-separatorSuccess: var(--separatorSuccess);
+  --color-separatorModerate: var(--separatorModerate);
+  --color-separatorAccent: var(--separatorAccent);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--separator1);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-button: var(--bg2);
+  --color-button-hover: var(--bg3);
+  --color-button-foreground: var(--fg1);
+  --color-button-primary: var(--bg2);
+  --color-button-primary-foreground: var(--fgSerious);
+  --color-button-secondary: var(--bgAccentPrimary);
+  --color-button-secondary-foreground: var(--fgAccent);
+
+  --color-destructive: var(--bgSerious);
+  --color-destructive-hover: var(--bgSerious2);
+  --color-destructive-foreground: var(--fgSerious);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utils {
+  .animate-text-shimmer {
+    animation-delay: 0.5s;
+    animation-duration: 3s;
+    animation-iteration-count: infinite;
+    animation-name: text-shimmer;
+    background: var(--muted-foreground)
+      gradient(
+        linear,
+        100% 0,
+        0 0,
+        from(var(--muted-foreground)),
+        color-stop(0.5, var(--secondary-foreground)),
+        to(var(--muted-foreground))
+      );
+    background: var(--muted-foreground) -webkit-gradient(
+        linear,
+        100% 0,
+        0 0,
+        from(var(--muted-foreground)),
+        color-stop(0.5, var(--secondary-foreground)),
+        to(var(--muted-foreground))
+      );
+    background-repeat: no-repeat;
+    background-size: 50% 200%;
+    display: inline-block;
+  }
+
+  @keyframes text-shimmer {
+    0% {
+      background-position: -100% 0;
+    }
+    100% {
+      background-position: 250% 0;
+    }
+  }
+}
+</file>
+
+<file path="app/layout.tsx">
+import { Geist, Geist_Mono } from 'next/font/google';
+import { headers } from 'next/headers';
+
+import { APP_CONFIG_DEFAULTS } from '@/app-config';
+import { ApplyThemeScript, ThemeToggle } from '@/components/theme-toggle';
+import { getAppConfig } from '@/lib/utils';
+
+import './globals.css';
+
+const geist = Geist({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-geist',
+});
+
+const geistMono = Geist_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-geist-mono',
+});
+
+interface RootLayoutProps {
+  children: React.ReactNode;
+}
+
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const hdrs = await headers();
+  const { accent, accentDark, pageTitle, pageDescription } = await getAppConfig(hdrs);
+
+  // check provided accent colors against defaults, and apply styles if they differ (or in development mode)
+  // generate a hover color for the accent color by mixing it with 20% black
+  const styles = [
+    process.env.NODE_ENV === 'development' || accent !== APP_CONFIG_DEFAULTS.accent
+      ? `:root { --primary: ${accent}; --primary-hover: color-mix(in srgb, ${accent} 80%, #000); }`
+      : '',
+    process.env.NODE_ENV === 'development' || accentDark !== APP_CONFIG_DEFAULTS.accentDark
+      ? `.dark { --primary: ${accentDark}; --primary-hover: color-mix(in srgb, ${accentDark} 80%, #000); }`
+      : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return (
+    <html lang="en" suppressHydrationWarning className="scroll-smooth">
+      <head>
+        {styles && <style>{styles}</style>}
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDescription} />
+        <ApplyThemeScript />
+      </head>
+      <body className={`${geist.className} ${geistMono.variable} overflow-x-hidden antialiased`}>
+        {children}
+        <div className="group fixed bottom-0 left-1/2 z-50 mb-2 -translate-x-1/2">
+          <ThemeToggle className="translate-y-20 transition-transform delay-150 duration-300 group-hover:translate-y-0" />
+        </div>
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="components.json">
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "app/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "iconLibrary": "phosphor"
+}
+</file>
+
+<file path="components/alert-toast.tsx">
+'use client';
+
+import { ReactNode } from 'react';
+
+import { toast as sonnerToast } from 'sonner';
+
+import { WarningIcon } from '@phosphor-icons/react/dist/ssr';
+
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+
+interface ToastProps {
+  id: string | number;
+  title: ReactNode;
+  description: ReactNode;
+}
+
+export function toastAlert(toast: Omit<ToastProps, 'id'>) {
+  return sonnerToast.custom(
+    (id) => <AlertToast id={id} title={toast.title} description={toast.description} />,
+    { duration: 10_000 }
+  );
+}
+
+function AlertToast(props: ToastProps) {
+  const { title, description, id } = props;
+
+  return (
+    <Alert onClick={() => sonnerToast.dismiss(id)} className="bg-accent">
+      <WarningIcon weight="bold" />
+      <AlertTitle>{title}</AlertTitle>
+      {description && <AlertDescription>{description}</AlertDescription>}
+    </Alert>
+  );
+}
+</file>
+
+<file path="components/app.tsx">
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+
+import { Room, RoomEvent } from 'livekit-client';
+import { motion } from 'motion/react';
+
+import { RoomAudioRenderer, RoomContext, StartAudio } from '@livekit/components-react';
+
+import { toastAlert } from '@/components/alert-toast';
+import { SessionView } from '@/components/session-view';
+import { Toaster } from '@/components/ui/sonner';
+import { Welcome } from '@/components/welcome';
+import useConnectionDetails from '@/hooks/useConnectionDetails';
+import type { AppConfig } from '@/lib/types';
+
+const MotionWelcome = motion.create(Welcome);
+const MotionSessionView = motion.create(SessionView);
+
+interface AppProps {
+  appConfig: AppConfig;
+}
+
+export function App({ appConfig }: AppProps) {
+  const room = useMemo(() => new Room(), []);
+  const [sessionMode, setSessionMode] = useState<'chat' | 'voice'>('chat');
+  const [currentView, setCurrentView] = useState<'welcome' | 'session'>('welcome');
+  const { refreshConnectionDetails, existingOrRefreshConnectionDetails } =
+    useConnectionDetails(appConfig);
+
+  // Setup LiveKit room event listeners for disconnection and media errors
+  useEffect(() => {
+    const onDisconnected = () => {
+      setSessionMode('chat');
+      setCurrentView('welcome'); // Also hide UI to go back to welcome screen
+      refreshConnectionDetails();
+    };
+    const onMediaDevicesError = (error: Error) => {
+      toastAlert({
+        title: 'Encountered an error with your media devices',
+        description: `${error.name}: ${error.message}`,
+      });
+    };
+    room.on(RoomEvent.MediaDevicesError, onMediaDevicesError);
+    room.on(RoomEvent.Disconnected, onDisconnected);
+    return () => {
+      room.off(RoomEvent.Disconnected, onDisconnected);
+      room.off(RoomEvent.MediaDevicesError, onMediaDevicesError);
+    };
+  }, [room, refreshConnectionDetails]);
+
+  // Auto-connect to LiveKit room when voice mode is activated
+  useEffect(() => {
+    let aborted = false;
+    if (sessionMode === 'voice' && room.state === 'disconnected') {
+      Promise.all([
+        room.localParticipant.setMicrophoneEnabled(true, undefined, {
+          preConnectBuffer: appConfig.isPreConnectBufferEnabled,
+        }),
+        existingOrRefreshConnectionDetails().then((connectionDetails) =>
+          room.connect(connectionDetails.serverUrl, connectionDetails.participantToken)
+        ),
+      ]).catch((error) => {
+        if (aborted) {
+          // Once the effect has cleaned up after itself, drop any errors
+          //
+          // These errors are likely caused by this effect rerunning rapidly,
+          // resulting in a previous run `disconnect` running in parallel with
+          // a current run `connect`
+          return;
+        }
+
+        toastAlert({
+          title: 'There was an error connecting to the agent',
+          description: `${error.name}: ${error.message}`,
+        });
+      });
+    }
+    return () => {
+      aborted = true;
+      room.disconnect();
+    };
+  }, [room, sessionMode, appConfig.isPreConnectBufferEnabled, existingOrRefreshConnectionDetails]);
+
+  const { startButtonText, startChatButtonText } = appConfig;
+
+  // Handle user-initiated disconnection (resets to welcome screen)
+  const handleDisconnect = () => {
+    setSessionMode('chat');
+    setCurrentView('welcome');
+  };
+
+  return (
+    <main>
+      <MotionWelcome
+        key="welcome"
+        startButtonText={startButtonText}
+        startChatButtonText={startChatButtonText}
+        onStartCall={() => {
+          setCurrentView('session');
+          setSessionMode('voice');
+        }}
+        onStartChat={() => {
+          setCurrentView('session');
+          setSessionMode('chat');
+        }}
+        disabled={currentView === 'session'}
+        initial={{ opacity: 1 }}
+        animate={{ opacity: currentView === 'session' ? 0 : 1 }}
+        transition={{ duration: 0.5, ease: 'linear', delay: currentView === 'session' ? 0 : 0.5 }}
+      />
+
+      <RoomContext.Provider value={room}>
+        <RoomAudioRenderer />
+        <StartAudio label="Start Audio" />
+        {/* --- */}
+        <MotionSessionView
+          key="session-view"
+          appConfig={appConfig}
+          disabled={currentView === 'welcome'}
+          sessionMode={sessionMode}
+          onDisconnect={handleDisconnect}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: currentView === 'session' ? 1 : 0 }}
+          transition={{
+            duration: 0.5,
+            ease: 'linear',
+            delay: currentView === 'session' ? 0.5 : 0,
+          }}
+        />
+      </RoomContext.Provider>
+
+      <Toaster />
+    </main>
+  );
+}
+</file>
+
+<file path="components/livekit/agent-control-bar/agent-control-bar.tsx">
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+
+import { Track } from 'livekit-client';
+
+import { BarVisualizer, useRemoteParticipants } from '@livekit/components-react';
+import { ArrowLeftIcon, ChatTextIcon, PhoneDisconnectIcon } from '@phosphor-icons/react/dist/ssr';
+
+import { ChatInput } from '@/components/livekit/chat/chat-input';
+import { Button } from '@/components/ui/button';
+import { Toggle } from '@/components/ui/toggle';
+import { AppConfig } from '@/lib/types';
+import { cn } from '@/lib/utils';
+
+import { DeviceSelect } from '../device-select';
+import { TrackToggle } from '../track-toggle';
+import { UseAgentControlBarProps, useAgentControlBar } from './hooks/use-agent-control-bar';
+
+export interface AgentControlBarProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    UseAgentControlBarProps {
+  capabilities: Pick<AppConfig, 'supportsChatInput' | 'supportsVideoInput' | 'supportsScreenShare'>;
+  onChatOpenChange?: (open: boolean) => void;
+  onSendMessage?: (message: string) => Promise<void>;
+  onDisconnect?: () => void;
+  onDeviceError?: (error: { source: Track.Source; error: Error }) => void;
+  defaultChatOpen?: boolean;
+}
+
+/**
+ * A control bar specifically designed for voice assistant interfaces
+ */
+export function AgentControlBar({
+  controls,
+  saveUserChoices = true,
+  capabilities,
+  className,
+  onSendMessage,
+  onChatOpenChange,
+  onDisconnect,
+  onDeviceError,
+  defaultChatOpen,
+  ...props
+}: AgentControlBarProps) {
+  const participants = useRemoteParticipants();
+  const isInCall = participants.length > 0;
+  const [chatOpen, setChatOpen] = useState<boolean>(defaultChatOpen ?? false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+
+  const isAgentAvailable = participants.some((p) => p.isAgent);
+  // In chat-only mode (no participants), allow input. In call mode, require agent.
+  const isInputDisabled =
+    !chatOpen || (participants.length > 0 && !isAgentAvailable) || isSendingMessage;
+
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  const {
+    micTrackRef,
+    visibleControls,
+    cameraToggle,
+    microphoneToggle,
+    screenShareToggle,
+    handleAudioDeviceChange,
+    handleVideoDeviceChange,
+    handleDisconnect,
+  } = useAgentControlBar({
+    controls,
+    saveUserChoices,
+  });
+
+  const handleSendMessage = async (message: string) => {
+    setIsSendingMessage(true);
+    try {
+      await onSendMessage?.(message);
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
+  const onLeave = async () => {
+    setIsDisconnecting(true);
+    await handleDisconnect();
+    setIsDisconnecting(false);
+    onDisconnect?.();
+  };
+
+  useEffect(() => {
+    onChatOpenChange?.(chatOpen);
+  }, [chatOpen, onChatOpenChange]);
+
+  const onMicrophoneDeviceSelectError = useCallback(
+    (error: Error) => {
+      onDeviceError?.({ source: Track.Source.Microphone, error });
+    },
+    [onDeviceError]
+  );
+  const onCameraDeviceSelectError = useCallback(
+    (error: Error) => {
+      onDeviceError?.({ source: Track.Source.Camera, error });
+    },
+    [onDeviceError]
+  );
+
+  return (
+    <div
+      aria-label="Voice assistant controls"
+      className={cn(
+        'bg-background border-bg2 dark:border-separator1 flex flex-col rounded-[31px] border p-3 drop-shadow-md/3',
+        className
+      )}
+      {...props}
+    >
+      {capabilities.supportsChatInput && (
+        <div
+          inert={!chatOpen}
+          className={cn(
+            'overflow-hidden transition-[height] duration-300 ease-out',
+            chatOpen ? 'h-[57px]' : 'h-0'
+          )}
+        >
+          <div className="flex h-8 w-full">
+            <ChatInput onSend={handleSendMessage} disabled={isInputDisabled} className="w-full" />
+          </div>
+          <hr className="border-bg2 my-3" />
+        </div>
+      )}
+
+      <div className="flex flex-row justify-between gap-1">
+        <div className="flex gap-1">
+          {visibleControls.microphone && (
+            <div className="flex items-center gap-0">
+              <TrackToggle
+                variant="primary"
+                source={Track.Source.Microphone}
+                pressed={microphoneToggle.enabled}
+                disabled={microphoneToggle.pending}
+                onPressedChange={microphoneToggle.toggle}
+                className="peer/track group/track relative w-auto pr-3 pl-3 md:rounded-r-none md:border-r-0 md:pr-2"
+              >
+                <BarVisualizer
+                  barCount={3}
+                  trackRef={micTrackRef}
+                  options={{ minHeight: 5 }}
+                  className="flex h-full w-auto items-center justify-center gap-0.5"
+                >
+                  <span
+                    className={cn([
+                      'h-full w-0.5 origin-center rounded-2xl',
+                      'group-data-[state=on]/track:bg-fg1 group-data-[state=off]/track:bg-destructive-foreground',
+                      'data-lk-muted:bg-muted',
+                    ])}
+                  ></span>
+                </BarVisualizer>
+              </TrackToggle>
+              <hr className="bg-separator1 peer-data-[state=off]/track:bg-separatorSerious relative z-10 -mr-px hidden h-4 w-px md:block" />
+              <DeviceSelect
+                size="sm"
+                kind="audioinput"
+                onMediaDeviceError={onMicrophoneDeviceSelectError}
+                onActiveDeviceChange={handleAudioDeviceChange}
+                className={cn([
+                  'pl-2',
+                  'peer-data-[state=off]/track:text-destructive-foreground',
+                  'hover:text-fg1 focus:text-fg1',
+                  'hover:peer-data-[state=off]/track:text-destructive-foreground focus:peer-data-[state=off]/track:text-destructive-foreground',
+                  'hidden rounded-l-none md:block',
+                ])}
+              />
+            </div>
+          )}
+
+          {capabilities.supportsVideoInput && visibleControls.camera && (
+            <div className="flex items-center gap-0">
+              <TrackToggle
+                variant="primary"
+                source={Track.Source.Camera}
+                pressed={cameraToggle.enabled}
+                pending={cameraToggle.pending}
+                disabled={cameraToggle.pending}
+                onPressedChange={cameraToggle.toggle}
+                className="peer/track relative w-auto rounded-r-none pr-3 pl-3 disabled:opacity-100 md:border-r-0 md:pr-2"
+              />
+              <hr className="bg-separator1 peer-data-[state=off]/track:bg-separatorSerious relative z-10 -mr-px hidden h-4 w-px md:block" />
+              <DeviceSelect
+                size="sm"
+                kind="videoinput"
+                onMediaDeviceError={onCameraDeviceSelectError}
+                onActiveDeviceChange={handleVideoDeviceChange}
+                className={cn([
+                  'pl-2',
+                  'peer-data-[state=off]/track:text-destructive-foreground',
+                  'hover:text-fg1 focus:text-fg1',
+                  'hover:peer-data-[state=off]/track:text-destructive-foreground focus:peer-data-[state=off]/track:text-destructive-foreground',
+                  'rounded-l-none',
+                ])}
+              />
+            </div>
+          )}
+
+          {capabilities.supportsScreenShare && visibleControls.screenShare && (
+            <div className="flex items-center gap-0">
+              <TrackToggle
+                variant="secondary"
+                source={Track.Source.ScreenShare}
+                pressed={screenShareToggle.enabled}
+                disabled={screenShareToggle.pending}
+                onPressedChange={screenShareToggle.toggle}
+                className="relative w-auto"
+              />
+            </div>
+          )}
+
+          {visibleControls.chat && (
+            <Toggle
+              variant="secondary"
+              aria-label="Toggle chat"
+              pressed={chatOpen}
+              onPressedChange={setChatOpen}
+              disabled={participants.length > 0 && !isAgentAvailable}
+              className="aspect-square h-full"
+            >
+              <ChatTextIcon weight="bold" />
+            </Toggle>
+          )}
+        </div>
+        {visibleControls.leave && (
+          <Button
+            variant="destructive"
+            onClick={onLeave}
+            disabled={isDisconnecting}
+            className="font-mono"
+          >
+            {isInCall ? <PhoneDisconnectIcon weight="bold" /> : <ArrowLeftIcon weight="bold" />}
+            <span className="hidden md:inline">{isInCall ? 'END CALL' : 'BACK'}</span>
+            <span className="inline md:hidden">{isInCall ? 'END' : 'BACK'}</span>
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="components/livekit/agent-control-bar/hooks/use-agent-control-bar.ts">
+import { useCallback, useMemo } from 'react';
+
+import { Track } from 'livekit-client';
+
+import {
+  type TrackReferenceOrPlaceholder,
+  useLocalParticipant,
+  usePersistentUserChoices,
+  useRoomContext,
+  useTrackToggle,
+} from '@livekit/components-react';
+
+import { usePublishPermissions } from './use-publish-permissions';
+
+export interface ControlBarControls {
+  microphone?: boolean;
+  screenShare?: boolean;
+  chat?: boolean;
+  camera?: boolean;
+  leave?: boolean;
+}
+
+export interface UseAgentControlBarProps {
+  controls?: ControlBarControls;
+  saveUserChoices?: boolean;
+  onDeviceError?: (error: { source: Track.Source; error: Error }) => void;
+}
+
+export interface UseAgentControlBarReturn {
+  micTrackRef: TrackReferenceOrPlaceholder;
+  visibleControls: ControlBarControls;
+  microphoneToggle: ReturnType<typeof useTrackToggle<Track.Source.Microphone>>;
+  cameraToggle: ReturnType<typeof useTrackToggle<Track.Source.Camera>>;
+  screenShareToggle: ReturnType<typeof useTrackToggle<Track.Source.ScreenShare>>;
+  handleDisconnect: () => void;
+  handleAudioDeviceChange: (deviceId: string) => void;
+  handleVideoDeviceChange: (deviceId: string) => void;
+}
+
+export function useAgentControlBar(props: UseAgentControlBarProps = {}): UseAgentControlBarReturn {
+  const { controls, saveUserChoices = true } = props;
+  const visibleControls = {
+    leave: true,
+    ...controls,
+  };
+  const { microphoneTrack, localParticipant } = useLocalParticipant();
+  const publishPermissions = usePublishPermissions();
+  const room = useRoomContext();
+
+  const microphoneToggle = useTrackToggle({
+    source: Track.Source.Microphone,
+    onDeviceError: (error) => props.onDeviceError?.({ source: Track.Source.Microphone, error }),
+  });
+  const cameraToggle = useTrackToggle({
+    source: Track.Source.Camera,
+    onDeviceError: (error) => props.onDeviceError?.({ source: Track.Source.Camera, error }),
+  });
+  const screenShareToggle = useTrackToggle({
+    source: Track.Source.ScreenShare,
+    onDeviceError: (error) => props.onDeviceError?.({ source: Track.Source.ScreenShare, error }),
+  });
+
+  const micTrackRef = useMemo(() => {
+    return {
+      participant: localParticipant,
+      source: Track.Source.Microphone,
+      publication: microphoneTrack,
+    };
+  }, [localParticipant, microphoneTrack]);
+
+  visibleControls.microphone ??= publishPermissions.microphone;
+  visibleControls.screenShare ??= publishPermissions.screenShare;
+  visibleControls.camera ??= publishPermissions.camera;
+  visibleControls.chat ??= publishPermissions.data;
+
+  const {
+    saveAudioInputEnabled,
+    saveAudioInputDeviceId,
+    saveVideoInputEnabled,
+    saveVideoInputDeviceId,
+  } = usePersistentUserChoices({
+    preventSave: !saveUserChoices,
+  });
+
+  const handleDisconnect = useCallback(async () => {
+    if (room) {
+      await room.disconnect();
+    }
+  }, [room]);
+
+  const handleAudioDeviceChange = useCallback(
+    (deviceId: string) => {
+      saveAudioInputDeviceId(deviceId ?? 'default');
+    },
+    [saveAudioInputDeviceId]
+  );
+
+  const handleVideoDeviceChange = useCallback(
+    (deviceId: string) => {
+      saveVideoInputDeviceId(deviceId ?? 'default');
+    },
+    [saveVideoInputDeviceId]
+  );
+
+  const handleToggleCamera = useCallback(
+    async (enabled?: boolean) => {
+      if (screenShareToggle.enabled) {
+        screenShareToggle.toggle(false);
+      }
+      await cameraToggle.toggle(enabled);
+      // persist video input enabled preference
+      saveVideoInputEnabled(!cameraToggle.enabled);
+    },
+    [cameraToggle, screenShareToggle, saveVideoInputEnabled]
+  );
+
+  const handleToggleMicrophone = useCallback(
+    async (enabled?: boolean) => {
+      await microphoneToggle.toggle(enabled);
+      // persist audio input enabled preference
+      saveAudioInputEnabled(!microphoneToggle.enabled);
+    },
+    [microphoneToggle, saveAudioInputEnabled]
+  );
+
+  const handleToggleScreenShare = useCallback(
+    async (enabled?: boolean) => {
+      if (cameraToggle.enabled) {
+        cameraToggle.toggle(false);
+      }
+      await screenShareToggle.toggle(enabled);
+    },
+    [screenShareToggle, cameraToggle]
+  );
+
+  return {
+    micTrackRef,
+    visibleControls,
+    cameraToggle: {
+      ...cameraToggle,
+      toggle: handleToggleCamera,
+    },
+    microphoneToggle: {
+      ...microphoneToggle,
+      toggle: handleToggleMicrophone,
+    },
+    screenShareToggle: {
+      ...screenShareToggle,
+      toggle: handleToggleScreenShare,
+    },
+    handleDisconnect,
+    handleAudioDeviceChange,
+    handleVideoDeviceChange,
+  };
+}
+</file>
+
+<file path="components/livekit/agent-control-bar/hooks/use-publish-permissions.ts">
+import { Track } from 'livekit-client';
+
+import { useLocalParticipantPermissions } from '@livekit/components-react';
+
+const trackSourceToProtocol = (source: Track.Source) => {
+  // NOTE: this mapping avoids importing the protocol package as that leads to a significant bundle size increase
+  switch (source) {
+    case Track.Source.Camera:
+      return 1;
+    case Track.Source.Microphone:
+      return 2;
+    case Track.Source.ScreenShare:
+      return 3;
+    default:
+      return 0;
+  }
+};
+
+export interface PublishPermissions {
+  camera: boolean;
+  microphone: boolean;
+  screenShare: boolean;
+  data: boolean;
+}
+
+export function usePublishPermissions(): PublishPermissions {
+  const localPermissions = useLocalParticipantPermissions();
+
+  const canPublishSource = (source: Track.Source) => {
+    return (
+      !!localPermissions?.canPublish &&
+      (localPermissions.canPublishSources.length === 0 ||
+        localPermissions.canPublishSources.includes(trackSourceToProtocol(source)))
+    );
+  };
+
+  return {
+    camera: canPublishSource(Track.Source.Camera),
+    microphone: canPublishSource(Track.Source.Microphone),
+    screenShare: canPublishSource(Track.Source.ScreenShare),
+    data: localPermissions?.canPublishData ?? false,
+  };
+}
+</file>
+
+<file path="components/livekit/agent-tile.tsx">
+import { type AgentState, BarVisualizer, type TrackReference } from '@livekit/components-react';
+
+import { cn } from '@/lib/utils';
+
+interface AgentAudioTileProps {
+  state: AgentState;
+  audioTrack: TrackReference;
+  className?: string;
+}
+
+export const AgentTile = ({
+  state,
+  audioTrack,
+  className,
+  ref,
+}: React.ComponentProps<'div'> & AgentAudioTileProps) => {
+  return (
+    <div ref={ref} className={cn(className)}>
+      <BarVisualizer
+        barCount={5}
+        state={state}
+        options={{ minHeight: 5 }}
+        trackRef={audioTrack}
+        className={cn('flex aspect-video w-40 items-center justify-center gap-1')}
+      >
+        <span
+          className={cn([
+            'bg-muted min-h-4 w-4 rounded-full',
+            'origin-center transition-colors duration-250 ease-linear',
+            'data-[lk-highlighted=true]:bg-foreground data-[lk-muted=true]:bg-muted',
+          ])}
+        />
+      </BarVisualizer>
+    </div>
+  );
+};
+</file>
+
+<file path="components/livekit/avatar-tile.tsx">
+import { type TrackReference, VideoTrack } from '@livekit/components-react';
+
+import { cn } from '@/lib/utils';
+
+interface AgentAudioTileProps {
+  videoTrack: TrackReference;
+  className?: string;
+}
+
+export const AvatarTile = ({
+  videoTrack,
+  className,
+  ref,
+}: React.ComponentProps<'div'> & AgentAudioTileProps) => {
+  return (
+    <div ref={ref} className={cn(className)}>
+      <VideoTrack
+        trackRef={videoTrack}
+        width={videoTrack?.publication.dimensions?.width ?? 0}
+        height={videoTrack?.publication.dimensions?.height ?? 0}
+        className="rounded-md"
+      />
+    </div>
+  );
+};
+</file>
+
+<file path="components/livekit/chat/chat-entry.tsx">
+import * as React from 'react';
+
+import type { MessageFormatter, ReceivedChatMessage } from '@livekit/components-react';
+
+import { cn } from '@/lib/utils';
+
+import { useChatMessage } from './hooks/utils';
+
+export interface ChatEntryProps extends React.HTMLAttributes<HTMLLIElement> {
+  /** The chat massage object to display. */
+  entry: ReceivedChatMessage;
+  /** Hide sender name. Useful when displaying multiple consecutive chat messages from the same person. */
+  hideName?: boolean;
+  /** Hide message timestamp. */
+  hideTimestamp?: boolean;
+  /** An optional formatter for the message body. */
+  messageFormatter?: MessageFormatter;
+}
+
+export const ChatEntry = ({
+  entry,
+  messageFormatter,
+  hideName,
+  hideTimestamp,
+  className,
+  ...props
+}: ChatEntryProps) => {
+  const { message, hasBeenEdited, time, locale, name } = useChatMessage(entry, messageFormatter);
+
+  const isUser = entry.from?.isLocal ?? false;
+  const messageOrigin = isUser ? 'remote' : 'local';
+
+  return (
+    <li
+      data-lk-message-origin={messageOrigin}
+      title={time.toLocaleTimeString(locale, { timeStyle: 'full' })}
+      className={cn('group flex flex-col gap-0.5', className)}
+      {...props}
+    >
+      {(!hideTimestamp || !hideName || hasBeenEdited) && (
+        <span className="text-muted-foreground flex text-sm">
+          {!hideName && <strong className="mt-2">{name}</strong>}
+
+          {!hideTimestamp && (
+            <span className="align-self-end ml-auto font-mono text-xs opacity-0 transition-opacity ease-linear group-hover:opacity-100">
+              {hasBeenEdited && '*'}
+              {time.toLocaleTimeString(locale, { timeStyle: 'short' })}
+            </span>
+          )}
+        </span>
+      )}
+
+      <span className={cn('max-w-4/5 rounded-[20px] p-2', isUser ? 'bg-muted ml-auto' : 'mr-auto')}>
+        {message}
+      </span>
+    </li>
+  );
+};
+</file>
+
+<file path="components/livekit/chat/chat-input.tsx">
+import { useEffect, useRef, useState } from 'react';
+
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+interface ChatInputProps extends React.HTMLAttributes<HTMLFormElement> {
+  onSend?: (message: string) => void;
+  disabled?: boolean;
+}
+
+export function ChatInput({ onSend, className, disabled, ...props }: ChatInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [message, setMessage] = useState<string>('');
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    props.onSubmit?.(e);
+    onSend?.(message);
+    setMessage('');
+  };
+
+  const isDisabled = disabled || message.trim().length === 0;
+
+  useEffect(() => {
+    if (disabled) return;
+    // when not disabled refocus on input
+    inputRef.current?.focus();
+  }, [disabled]);
+
+  return (
+    <form
+      {...props}
+      onSubmit={handleSubmit}
+      className={cn('flex items-center gap-2 rounded-md pl-1 text-sm', className)}
+    >
+      <input
+        autoFocus
+        ref={inputRef}
+        type="text"
+        value={message}
+        disabled={disabled}
+        placeholder="Type something..."
+        onChange={(e) => setMessage(e.target.value)}
+        className="flex-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      />
+      <Button
+        size="sm"
+        type="submit"
+        variant={isDisabled ? 'secondary' : 'primary'}
+        disabled={isDisabled}
+        className="font-mono"
+      >
+        SEND
+      </Button>
+    </form>
+  );
+}
+</file>
+
+<file path="components/livekit/chat/chat-message-view.tsx">
+'use client';
+
+import { type RefObject, useEffect, useRef } from 'react';
+
+import { cn } from '@/lib/utils';
+
+export function useAutoScroll(scrollContentContainerRef: RefObject<Element | null>) {
+  useEffect(() => {
+    function scrollToBottom() {
+      const { scrollingElement } = document;
+
+      if (scrollingElement) {
+        scrollingElement.scrollTop = scrollingElement.scrollHeight;
+      }
+    }
+
+    if (scrollContentContainerRef.current) {
+      const resizeObserver = new ResizeObserver(scrollToBottom);
+
+      resizeObserver.observe(scrollContentContainerRef.current);
+      scrollToBottom();
+
+      return () => resizeObserver.disconnect();
+    }
+  }, [scrollContentContainerRef]);
+}
+interface ChatProps extends React.HTMLAttributes<HTMLDivElement> {
+  children?: React.ReactNode;
+  className?: string;
+}
+
+export const ChatMessageView = ({ className, children, ...props }: ChatProps) => {
+  const scrollContentRef = useRef<HTMLDivElement>(null);
+
+  useAutoScroll(scrollContentRef);
+
+  return (
+    <div ref={scrollContentRef} className={cn('flex flex-col justify-end', className)} {...props}>
+      {children}
+    </div>
+  );
+};
+</file>
+
+<file path="components/livekit/chat/hooks/utils.ts">
+import * as React from 'react';
+
+import type { MessageFormatter, ReceivedChatMessage } from '@livekit/components-react';
+
+export const useChatMessage = (entry: ReceivedChatMessage, messageFormatter?: MessageFormatter) => {
+  const formattedMessage = React.useMemo(() => {
+    return messageFormatter ? messageFormatter(entry.message) : entry.message;
+  }, [entry.message, messageFormatter]);
+  const hasBeenEdited = !!entry.editTimestamp;
+  const time = new Date(entry.timestamp);
+  const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US';
+
+  const name = entry.from?.name && entry.from.name !== '' ? entry.from.name : entry.from?.identity;
+
+  return { message: formattedMessage, hasBeenEdited, time, locale, name };
+};
+</file>
+
+<file path="components/livekit/device-select.tsx">
+'use client';
+
+import { cva } from 'class-variance-authority';
+import { LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
+
+import { useMaybeRoomContext, useMediaDeviceSelect } from '@livekit/components-react';
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+
+type DeviceSelectProps = React.ComponentProps<typeof SelectTrigger> & {
+  kind: MediaDeviceKind;
+  track?: LocalAudioTrack | LocalVideoTrack | undefined;
+  requestPermissions?: boolean;
+  onMediaDeviceError?: (error: Error) => void;
+  initialSelection?: string;
+  onActiveDeviceChange?: (deviceId: string) => void;
+  onDeviceListChange?: (devices: MediaDeviceInfo[]) => void;
+  variant?: 'default' | 'small';
+};
+
+const selectVariants = cva(
+  [
+    'w-full rounded-full px-3 py-2 text-sm cursor-pointer',
+    'disabled:not-allowed hover:bg-button-hover focus:bg-button-hover',
+  ],
+  {
+    variants: {
+      size: {
+        default: 'w-[180px]',
+        sm: 'w-auto',
+      },
+    },
+    defaultVariants: {
+      size: 'default',
+    },
+  }
+);
+
+export function DeviceSelect({
+  kind,
+  track,
+  requestPermissions,
+  onMediaDeviceError,
+  // initialSelection,
+  // onActiveDeviceChange,
+  // onDeviceListChange,
+  ...props
+}: DeviceSelectProps) {
+  const size = props.size || 'default';
+
+  const room = useMaybeRoomContext();
+  const { devices, activeDeviceId, setActiveMediaDevice } = useMediaDeviceSelect({
+    kind,
+    room,
+    track,
+    requestPermissions,
+    onError: onMediaDeviceError,
+  });
+  return (
+    <Select value={activeDeviceId} onValueChange={setActiveMediaDevice}>
+      <SelectTrigger className={cn(selectVariants({ size }), props.className)}>
+        {size !== 'sm' && (
+          <SelectValue className="font-mono text-sm" placeholder={`Select a ${kind}`} />
+        )}
+      </SelectTrigger>
+      <SelectContent>
+        {devices.map((device) => (
+          <SelectItem key={device.deviceId} value={device.deviceId} className="font-mono text-xs">
+            {device.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+</file>
+
+<file path="components/livekit/media-tiles.tsx">
+import { useMemo } from 'react';
+
+import { Track } from 'livekit-client';
+import { AnimatePresence, motion } from 'motion/react';
+
+import {
+  type TrackReference,
+  useLocalParticipant,
+  useTracks,
+  useVoiceAssistant,
+} from '@livekit/components-react';
+
+import { cn } from '@/lib/utils';
+
+import { AgentTile } from './agent-tile';
+import { AvatarTile } from './avatar-tile';
+import { VideoTile } from './video-tile';
+
+const MotionVideoTile = motion.create(VideoTile);
+const MotionAgentTile = motion.create(AgentTile);
+const MotionAvatarTile = motion.create(AvatarTile);
+
+const animationProps = {
+  initial: {
+    opacity: 0,
+    scale: 0,
+  },
+  animate: {
+    opacity: 1,
+    scale: 1,
+  },
+  exit: {
+    opacity: 0,
+    scale: 0,
+  },
+  transition: {
+    type: 'spring' as const,
+    stiffness: 675,
+    damping: 75,
+    mass: 1,
+  },
+};
+
+const classNames = {
+  // GRID
+  // 2 Columns x 3 Rows
+  grid: [
+    'h-full w-full',
+    'grid gap-x-2 place-content-center',
+    'grid-cols-[1fr_1fr] grid-rows-[90px_1fr_90px]',
+  ],
+  // Agent
+  // chatOpen: true,
+  // hasSecondTile: true
+  // layout: Column 1 / Row 1
+  // align: x-end y-center
+  agentChatOpenWithSecondTile: ['col-start-1 row-start-1', 'self-center justify-self-end'],
+  // Agent
+  // chatOpen: true,
+  // hasSecondTile: false
+  // layout: Column 1 / Row 1 / Column-Span 2
+  // align: x-center y-center
+  agentChatOpenWithoutSecondTile: ['col-start-1 row-start-1', 'col-span-2', 'place-content-center'],
+  // Agent
+  // chatOpen: false
+  // layout: Column 1 / Row 1 / Column-Span 2 / Row-Span 3
+  // align: x-center y-center
+  agentChatClosed: ['col-start-1 row-start-1', 'col-span-2 row-span-3', 'place-content-center'],
+  // Second tile
+  // chatOpen: true,
+  // hasSecondTile: true
+  // layout: Column 2 / Row 1
+  // align: x-start y-center
+  secondTileChatOpen: ['col-start-2 row-start-1', 'self-center justify-self-start'],
+  // Second tile
+  // chatOpen: false,
+  // hasSecondTile: false
+  // layout: Column 2 / Row 2
+  // align: x-end y-end
+  secondTileChatClosed: ['col-start-2 row-start-3', 'place-content-end'],
+};
+
+export function useLocalTrackRef(source: Track.Source) {
+  const { localParticipant } = useLocalParticipant();
+  const publication = localParticipant.getTrackPublication(source);
+  const trackRef = useMemo<TrackReference | undefined>(
+    () => (publication ? { source, participant: localParticipant, publication } : undefined),
+    [source, publication, localParticipant]
+  );
+  return trackRef;
+}
+
+interface MediaTilesProps {
+  chatOpen: boolean;
+}
+
+export function MediaTiles({ chatOpen }: MediaTilesProps) {
+  const {
+    state: agentState,
+    audioTrack: agentAudioTrack,
+    videoTrack: agentVideoTrack,
+  } = useVoiceAssistant();
+  const [screenShareTrack] = useTracks([Track.Source.ScreenShare]);
+  const cameraTrack: TrackReference | undefined = useLocalTrackRef(Track.Source.Camera);
+
+  const isCameraEnabled = cameraTrack && !cameraTrack.publication.isMuted;
+  const isScreenShareEnabled = screenShareTrack && !screenShareTrack.publication.isMuted;
+  const hasSecondTile = isCameraEnabled || isScreenShareEnabled;
+
+  const transition = {
+    ...animationProps.transition,
+    delay: chatOpen ? 0 : 0.15, // delay on close
+  };
+  const agentAnimate = {
+    ...animationProps.animate,
+    scale: chatOpen ? 1 : 3,
+    transition,
+  };
+  const avatarAnimate = {
+    ...animationProps.animate,
+    transition,
+  };
+  const agentLayoutTransition = transition;
+  const avatarLayoutTransition = transition;
+
+  const isAvatar = agentVideoTrack !== undefined;
+
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-8 bottom-32 z-50 md:top-12 md:bottom-40">
+      <div className="relative mx-auto h-full max-w-2xl px-4 md:px-0">
+        <div className={cn(classNames.grid)}>
+          {/* agent */}
+          <div
+            className={cn([
+              'grid',
+              // 'bg-[hotpink]', // for debugging
+              !chatOpen && classNames.agentChatClosed,
+              chatOpen && hasSecondTile && classNames.agentChatOpenWithSecondTile,
+              chatOpen && !hasSecondTile && classNames.agentChatOpenWithoutSecondTile,
+            ])}
+          >
+            <AnimatePresence mode="popLayout">
+              {!isAvatar && (
+                // audio-only agent
+                <MotionAgentTile
+                  key="agent"
+                  layoutId="agent"
+                  {...animationProps}
+                  animate={agentAnimate}
+                  transition={agentLayoutTransition}
+                  state={agentState}
+                  audioTrack={agentAudioTrack}
+                  className={cn(chatOpen ? 'h-[90px]' : 'h-auto w-full')}
+                />
+              )}
+              {isAvatar && (
+                // avatar agent
+                <MotionAvatarTile
+                  key="avatar"
+                  layoutId="avatar"
+                  {...animationProps}
+                  animate={avatarAnimate}
+                  transition={avatarLayoutTransition}
+                  videoTrack={agentVideoTrack}
+                  className={cn(
+                    chatOpen ? 'h-[90px] [&>video]:h-[90px] [&>video]:w-auto' : 'h-auto w-full'
+                  )}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div
+            className={cn([
+              'grid',
+              chatOpen && classNames.secondTileChatOpen,
+              !chatOpen && classNames.secondTileChatClosed,
+            ])}
+          >
+            {/* camera */}
+            <AnimatePresence>
+              {cameraTrack && isCameraEnabled && (
+                <MotionVideoTile
+                  key="camera"
+                  layout="position"
+                  layoutId="camera"
+                  {...animationProps}
+                  trackRef={cameraTrack}
+                  transition={{
+                    ...animationProps.transition,
+                    delay: chatOpen ? 0 : 0.15,
+                  }}
+                  className="h-[90px]"
+                />
+              )}
+              {/* screen */}
+              {isScreenShareEnabled && (
+                <MotionVideoTile
+                  key="screen"
+                  layout="position"
+                  layoutId="screen"
+                  {...animationProps}
+                  trackRef={screenShareTrack}
+                  transition={{
+                    ...animationProps.transition,
+                    delay: chatOpen ? 0 : 0.15,
+                  }}
+                  className="h-[90px]"
+                />
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="components/livekit/track-toggle.tsx">
+'use client';
+
+import * as React from 'react';
+
+import { Track } from 'livekit-client';
+
+import { useTrackToggle } from '@livekit/components-react';
+import {
+  MicrophoneIcon,
+  MicrophoneSlashIcon,
+  MonitorArrowUpIcon,
+  SpinnerIcon,
+  VideoCameraIcon,
+  VideoCameraSlashIcon,
+} from '@phosphor-icons/react/dist/ssr';
+
+import { Toggle } from '@/components/ui/toggle';
+import { cn } from '@/lib/utils';
+
+export type TrackToggleProps = React.ComponentProps<typeof Toggle> & {
+  source: Parameters<typeof useTrackToggle>[0]['source'];
+  pending?: boolean;
+};
+
+function getSourceIcon(source: Track.Source, enabled: boolean, pending = false) {
+  if (pending) {
+    return SpinnerIcon;
+  }
+
+  switch (source) {
+    case Track.Source.Microphone:
+      return enabled ? MicrophoneIcon : MicrophoneSlashIcon;
+    case Track.Source.Camera:
+      return enabled ? VideoCameraIcon : VideoCameraSlashIcon;
+    case Track.Source.ScreenShare:
+      return MonitorArrowUpIcon;
+    default:
+      return React.Fragment;
+  }
+}
+
+export function TrackToggle({ source, pressed, pending, className, ...props }: TrackToggleProps) {
+  const IconComponent = getSourceIcon(source, pressed ?? false, pending);
+
+  return (
+    <Toggle pressed={pressed} aria-label={`Toggle ${source}`} className={cn(className)} {...props}>
+      <IconComponent weight="bold" className={cn(pending && 'animate-spin')} />
+      {props.children}
+    </Toggle>
+  );
+}
+</file>
+
+<file path="components/livekit/video-tile.tsx">
+import React from 'react';
+
+import { motion } from 'motion/react';
+
+import { VideoTrack } from '@livekit/components-react';
+
+import { cn } from '@/lib/utils';
+
+const MotionVideoTrack = motion.create(VideoTrack);
+
+export const VideoTile = ({
+  trackRef,
+  className,
+  ref,
+}: React.ComponentProps<'div'> & React.ComponentProps<typeof VideoTrack>) => {
+  return (
+    <div ref={ref} className={cn('bg-muted overflow-hidden rounded-md', className)}>
+      <MotionVideoTrack
+        trackRef={trackRef}
+        width={trackRef?.publication.dimensions?.width ?? 0}
+        height={trackRef?.publication.dimensions?.height ?? 0}
+        className={cn('h-full w-auto')}
+      />
+    </div>
+  );
+};
+</file>
+
+<file path="components/provider.tsx">
+'use client';
+
+import React from 'react';
+
+import { Room } from 'livekit-client';
+
+import { RoomContext } from '@livekit/components-react';
+
+import { toastAlert } from '@/components/alert-toast';
+import useConnectionDetails from '@/hooks/useConnectionDetails';
+import { AppConfig } from '@/lib/types';
+
+export function Provider({
+  appConfig,
+  children,
+}: {
+  appConfig: AppConfig;
+  children: React.ReactNode;
+}) {
+  const { connectionDetails } = useConnectionDetails(appConfig);
+  const room = React.useMemo(() => new Room(), []);
+
+  React.useEffect(() => {
+    if (room.state === 'disconnected' && connectionDetails) {
+      Promise.all([
+        room.localParticipant.setMicrophoneEnabled(true, undefined, {
+          preConnectBuffer: true,
+        }),
+        room.connect(connectionDetails.serverUrl, connectionDetails.participantToken),
+      ]).catch((error) => {
+        toastAlert({
+          title: 'There was an error connecting to the agent',
+          description: `${error.name}: ${error.message}`,
+        });
+      });
+    }
+    return () => {
+      room.disconnect();
+    };
+  }, [room, connectionDetails]);
+
+  return <RoomContext.Provider value={room}>{children}</RoomContext.Provider>;
+}
+</file>
+
+<file path="components/session-view.tsx">
+'use client';
+
+import React, { useEffect, useState } from 'react';
+
+import { AnimatePresence, motion } from 'motion/react';
+
+import {
+  type AgentState,
+  type ReceivedChatMessage,
+  useRoomContext,
+  useVoiceAssistant,
+} from '@livekit/components-react';
+
+import { toastAlert } from '@/components/alert-toast';
+import { AgentControlBar } from '@/components/livekit/agent-control-bar/agent-control-bar';
+import { ChatEntry } from '@/components/livekit/chat/chat-entry';
+import { ChatMessageView } from '@/components/livekit/chat/chat-message-view';
+import { MediaTiles } from '@/components/livekit/media-tiles';
+import useChatAndTranscription from '@/hooks/useChatAndTranscription';
+import { useDebugMode } from '@/hooks/useDebug';
+import useLangGraphChat from '@/hooks/useLangGraphChat';
+import type { AppConfig } from '@/lib/types';
+import { cn } from '@/lib/utils';
+
+function isAgentAvailable(agentState: AgentState): boolean {
+  return agentState == 'listening' || agentState == 'thinking' || agentState == 'speaking';
+}
+
+interface SessionViewProps {
+  appConfig: AppConfig;
+  disabled: boolean;
+  sessionMode: 'chat' | 'voice';
+  onDisconnect?: () => void;
+}
+
+/**
+ * SessionView Component - Handles both chat-only and voice call sessions
+ *
+ * Conditional Rendering:
+ * - Chat-only mode: Shows only chat interface
+ * - Voice mode: Shows chat + media tiles + video controls + top background
+ */
+export const SessionView = ({
+  appConfig,
+  disabled,
+  sessionMode,
+  onDisconnect,
+  ref,
+}: React.ComponentProps<'div'> & SessionViewProps) => {
+  const { state: agentState } = useVoiceAssistant();
+  const [chatOpen, setChatOpen] = useState(false);
+
+  // LiveKit chat+transcription for voice call mode
+  const livekit = useChatAndTranscription();
+  // LangGraph chat for chat-only mode
+  const langgraph = useLangGraphChat({
+    apiUrl: process.env.NEXT_PUBLIC_LANGGRAPH_API_URL,
+    assistantId: process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID,
+  });
+
+  // Select message source based on session mode
+  const messages = sessionMode === 'voice' ? livekit.messages : langgraph.messages;
+  const room = useRoomContext();
+
+  useDebugMode({
+    enabled: process.env.NODE_END !== 'production',
+  });
+
+  async function handleSendMessage(message: string) {
+    if (sessionMode === 'voice') {
+      await livekit.send(message);
+    } else {
+      await langgraph.send(message);
+    }
+  }
+
+  function handleDisconnect() {
+    if (sessionMode === 'voice') {
+      room.disconnect(); // This will trigger the onDisconnected event in App.tsx
+    } else {
+      // In chat-only mode, call the parent's disconnect handler
+      onDisconnect?.();
+    }
+  }
+
+  useEffect(() => {
+    if (sessionMode === 'voice') {
+      const timeout = setTimeout(() => {
+        if (!isAgentAvailable(agentState)) {
+          const reason =
+            agentState === 'connecting'
+              ? 'Agent did not join the room. '
+              : 'Agent connected but did not complete initializing. ';
+
+          toastAlert({
+            title: 'Session ended',
+            description: (
+              <p className="w-full">
+                {reason}
+                Please check your agent connection and try again.
+              </p>
+            ),
+          });
+          room.disconnect();
+        }
+      }, 20_000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [agentState, sessionMode, room]);
+
+  const { supportsChatInput, supportsVideoInput, supportsScreenShare } = appConfig;
+  const capabilities = {
+    supportsChatInput,
+    supportsVideoInput,
+    supportsScreenShare,
+  };
+
+  // Expose chat input in non-call mode by forcing chat area open
+  useEffect(() => {
+    if (sessionMode === 'chat') {
+      setChatOpen(true);
+    }
+  }, [sessionMode]);
+
+  return (
+    <section
+      ref={ref}
+      inert={disabled}
+      className={cn(
+        'opacity-0',
+        // prevent page scrollbar
+        // when !chatOpen due to 'translate-y-20'
+        !chatOpen && 'max-h-svh overflow-hidden'
+      )}
+    >
+      <ChatMessageView
+        className={cn(
+          'mx-auto min-h-svh w-full max-w-2xl px-3 pb-40 transition-[opacity,translate] duration-300 ease-out md:px-0 md:pb-48',
+          // Adjust spacing based on session mode
+          sessionMode === 'voice'
+            ? 'pt-32 md:pt-36' // Space for media tiles in voice mode
+            : 'pt-20 md:pt-24', // Reduced spacing for chat-only mode
+          chatOpen ? 'translate-y-0 opacity-100 delay-200' : 'translate-y-20 opacity-0'
+        )}
+      >
+        <div className="space-y-3 whitespace-pre-wrap">
+          <AnimatePresence>
+            {messages.map((message: ReceivedChatMessage) => (
+              <motion.div
+                key={message.id}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 1, height: 'auto', translateY: 0.001 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+              >
+                <ChatEntry hideName key={message.id} entry={message} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      </ChatMessageView>
+
+      {/* Top background overlay - only show in voice mode for media tiles */}
+      {sessionMode === 'voice' && (
+        <div className="bg-background mp-12 fixed top-0 right-0 left-0 h-32 md:h-36">
+          {/* skrim */}
+          <div className="from-background absolute bottom-0 left-0 h-12 w-full translate-y-full bg-gradient-to-b to-transparent" />
+        </div>
+      )}
+
+      {/* Media tiles - only show in voice mode */}
+      {sessionMode === 'voice' && <MediaTiles chatOpen={chatOpen} />}
+
+      <div className="bg-background fixed right-0 bottom-0 left-0 z-50 px-3 pt-2 pb-3 md:px-12 md:pb-12">
+        <motion.div
+          key="control-bar"
+          initial={{ opacity: 0, translateY: '100%' }}
+          animate={{
+            opacity: 1, // Always show control bar when UI is visible
+            translateY: '0%',
+          }}
+          transition={{ duration: 0.3, delay: 0.5, ease: 'easeOut' }}
+        >
+          <div className="relative z-10 mx-auto w-full max-w-2xl">
+            {appConfig.isPreConnectBufferEnabled && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: sessionMode === 'voice' && messages.length === 0 ? 1 : 0,
+                  transition: {
+                    ease: 'easeIn',
+                    delay: messages.length > 0 ? 0 : 0.8,
+                    duration: messages.length > 0 ? 0.2 : 0.5,
+                  },
+                }}
+                aria-hidden={messages.length > 0}
+                className={cn(
+                  'absolute inset-x-0 -top-12 text-center',
+                  sessionMode === 'voice' && messages.length === 0 && 'pointer-events-none'
+                )}
+              >
+                <p className="animate-text-shimmer inline-block !bg-clip-text text-sm font-semibold text-transparent">
+                  Agent is listening, ask it a question
+                </p>
+              </motion.div>
+            )}
+
+            <AgentControlBar
+              capabilities={capabilities}
+              controls={{
+                chat: true, // Force chat control to be visible
+                leave: true, // Always show disconnect/back button
+                microphone: sessionMode === 'voice',
+                camera: sessionMode === 'voice',
+                screenShare: sessionMode === 'voice',
+              }}
+              onChatOpenChange={setChatOpen}
+              onSendMessage={handleSendMessage}
+              onDisconnect={handleDisconnect}
+              defaultChatOpen={sessionMode === 'chat'}
+            />
+          </div>
+          {/* skrim */}
+          <div className="from-background border-background absolute top-0 left-0 h-12 w-full -translate-y-full bg-gradient-to-t to-transparent" />
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+</file>
+
+<file path="components/theme-toggle.tsx">
+'use client';
+
+import { useEffect, useState } from 'react';
+
+import { MonitorIcon, MoonIcon, SunIcon } from '@phosphor-icons/react';
+
+import type { ThemeMode } from '@/lib/types';
+import { THEME_MEDIA_QUERY, THEME_STORAGE_KEY, cn } from '@/lib/utils';
+
+const THEME_SCRIPT = `
+  const doc = document.documentElement;
+  const theme = localStorage.getItem("${THEME_STORAGE_KEY}") ?? "system";
+
+  if (theme === "system") {
+    if (window.matchMedia("${THEME_MEDIA_QUERY}").matches) {
+      doc.classList.add("dark");
+    } else {
+      doc.classList.add("light");
+    }
+  } else {
+    doc.classList.add(theme);
+  }
+`
+  .trim()
+  .replace(/\n/g, '')
+  .replace(/\s+/g, ' ');
+
+function applyTheme(theme: ThemeMode) {
+  const doc = document.documentElement;
+
+  doc.classList.remove('dark', 'light');
+  localStorage.setItem(THEME_STORAGE_KEY, theme);
+
+  if (theme === 'system') {
+    if (window.matchMedia(THEME_MEDIA_QUERY).matches) {
+      doc.classList.add('dark');
+    } else {
+      doc.classList.add('light');
+    }
+  } else {
+    doc.classList.add(theme);
+  }
+}
+
+interface ThemeToggleProps {
+  className?: string;
+}
+
+export function ApplyThemeScript() {
+  return <script id="theme-script">{THEME_SCRIPT}</script>;
+}
+
+export function ThemeToggle({ className }: ThemeToggleProps) {
+  const [theme, setTheme] = useState<ThemeMode | undefined>(undefined);
+
+  useEffect(() => {
+    const storedTheme = (localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode) ?? 'system';
+
+    setTheme(storedTheme);
+  }, []);
+
+  function handleThemeChange(theme: ThemeMode) {
+    applyTheme(theme);
+    setTheme(theme);
+  }
+
+  return (
+    <div
+      className={cn(
+        'text-foreground bg-background flex w-full flex-row justify-end divide-x overflow-hidden rounded-full border',
+        className
+      )}
+    >
+      <span className="sr-only">Color scheme toggle</span>
+      <button
+        type="button"
+        onClick={() => handleThemeChange('dark')}
+        className="cursor-pointer p-1 pl-1.5"
+      >
+        <span className="sr-only">Enable dark color scheme</span>
+        <MoonIcon size={16} weight="bold" className={cn(theme !== 'dark' && 'opacity-25')} />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleThemeChange('light')}
+        className="cursor-pointer px-1.5 py-1"
+      >
+        <span className="sr-only">Enable light color scheme</span>
+        <SunIcon size={16} weight="bold" className={cn(theme !== 'light' && 'opacity-25')} />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleThemeChange('system')}
+        className="cursor-pointer p-1 pr-1.5"
+      >
+        <span className="sr-only">Enable system color scheme</span>
+        <MonitorIcon size={16} weight="bold" className={cn(theme !== 'system' && 'opacity-25')} />
+      </button>
+    </div>
+  );
+}
+</file>
+
+<file path="components/ui/alert.tsx">
+import * as React from 'react';
+
+import { type VariantProps, cva } from 'class-variance-authority';
+
+import { cn } from '@/lib/utils';
+
+const alertVariants = cva(
+  [
+    'relative w-full rounded-lg border px-4 py-3 text-sm grid grid-cols-[0_1fr] gap-y-0.5 items-start',
+    'has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current',
+  ],
+  {
+    variants: {
+      variant: {
+        default: 'bg-card text-card-foreground',
+        destructive: [
+          'text-destructive-foreground bg-destructive border-destructive-border',
+          '[&>svg]:text-current *:data-[slot=alert-description]:text-destructive-foreground/90',
+        ],
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+    },
+  }
+);
+
+function Alert({
+  className,
+  variant,
+  ...props
+}: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>) {
+  return (
+    <div
+      data-slot="alert"
+      role="alert"
+      className={cn(alertVariants({ variant }), className)}
+      {...props}
+    />
+  );
+}
+
+function AlertTitle({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="alert-title"
+      className={cn('col-start-2 line-clamp-1 min-h-4 font-medium tracking-tight', className)}
+      {...props}
+    />
+  );
+}
+
+function AlertDescription({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="alert-description"
+      className={cn(
+        'text-muted-foreground col-start-2 grid justify-items-start gap-1 text-sm [&_p]:leading-relaxed',
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+export { Alert, AlertTitle, AlertDescription };
+</file>
+
+<file path="components/ui/button.tsx">
+import * as React from 'react';
+
+import { type VariantProps, cva } from 'class-variance-authority';
+
+import { Slot } from '@radix-ui/react-slot';
+
+import { cn } from '@/lib/utils';
+
+const buttonVariants = cva(
+  [
+    'text-xs font-bold tracking-wider uppercase whitespace-nowrap',
+    'inline-flex items-center justify-center gap-2 shrink-0 rounded-full cursor-pointer outline-none transition-colors duration-300',
+    'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
+    'disabled:pointer-events-none disabled:opacity-50',
+    'aria-invalid:ring-destructive/20 aria-invalid:border-destructive dark:aria-invalid:ring-destructive/40 ',
+    "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",
+  ],
+  {
+    variants: {
+      variant: {
+        default: 'bg-button text-button-foreground hover:bg-muted focus:bg-muted',
+        destructive: [
+          'bg-destructive text-destructive-foreground',
+          'hover:bg-destructive-hover focus:bg-destructive-hover focus-visible:ring-destructive-foreground/20',
+          'dark:focus-visible:ring-destructive-foreground/40',
+        ],
+        outline: [
+          'border bg-background',
+          'hover:bg-accent hover:text-accent-foreground',
+          'dark:bg-input/30 dark:border-input dark:hover:bg-input/50',
+        ],
+        primary: 'bg-primary text-primary-foreground hover:bg-primary-hover focus:bg-primary-hover',
+        secondary: 'bg-secondary text-secondary-foregroun hover:bg-secondary/80',
+        ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
+        link: 'text-primary underline-offset-4 hover:underline',
+      },
+      size: {
+        default: 'h-9 px-4 py-2 has-[>svg]:px-3',
+        sm: 'h-8 gap-1.5 px-3 has-[>svg]:px-2.5',
+        lg: 'h-10 px-6 has-[>svg]:px-4',
+        icon: 'size-9',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+      size: 'default',
+    },
+  }
+);
+
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: React.ComponentProps<'button'> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean;
+  }) {
+  const Comp = asChild ? Slot : 'button';
+
+  return (
+    <Comp
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  );
+}
+
+export { Button, buttonVariants };
+</file>
+
+<file path="components/ui/select.tsx">
+'use client';
+
+import * as React from 'react';
+
+import { CaretDownIcon, CaretUpIcon, CheckIcon } from '@phosphor-icons/react/dist/ssr';
+import * as SelectPrimitive from '@radix-ui/react-select';
+
+import { cn } from '@/lib/utils';
+
+function Select({ ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  return <SelectPrimitive.Root data-slot="select" {...props} />;
+}
+
+function SelectGroup({ ...props }: React.ComponentProps<typeof SelectPrimitive.Group>) {
+  return <SelectPrimitive.Group data-slot="select-group" {...props} />;
+}
+
+function SelectValue({ ...props }: React.ComponentProps<typeof SelectPrimitive.Value>) {
+  return <SelectPrimitive.Value data-slot="select-value" {...props} />;
+}
+
+function SelectTrigger({
+  className,
+  size = 'default',
+  children,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
+  size?: 'sm' | 'default';
+}) {
+  return (
+    <SelectPrimitive.Trigger
+      data-slot="select-trigger"
+      data-size={size}
+      className={cn(
+        [
+          'flex w-fit cursor-pointer items-center justify-between gap-2',
+          'rounded-full px-3 py-2 text-sm whitespace-nowrap',
+          'bg-button transition-[color,border,background-color]',
+          'disabled:cursor-not-allowed disabled:opacity-50',
+          'hover:bg-muted focus:bg-muted hover:text-muted-foreground focus:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]',
+          'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive',
+          'data-[placeholder]:text-muted-foreground',
+          'data-[size=default]:h-9 data-[size=sm]:h-8',
+          '*:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2',
+          "[&:not([class*='text-'])_svg:not([class*='text-'])]:text-muted-foreground",
+          "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        ],
+        className
+      )}
+      {...props}
+    >
+      {children}
+      <SelectPrimitive.Icon asChild>
+        <CaretDownIcon weight="bold" className="size-4 transition-colors" />
+      </SelectPrimitive.Icon>
+    </SelectPrimitive.Trigger>
+  );
+}
+
+function SelectContent({
+  className,
+  children,
+  position = 'popper',
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+  return (
+    <SelectPrimitive.Portal>
+      <SelectPrimitive.Content
+        data-slot="select-content"
+        className={cn(
+          [
+            'bg-popover text-popover-foreground relative z-50 overflow-x-hidden overflow-y-auto rounded-md border drop-shadow-xl/5',
+            'max-h-(--radix-select-content-available-height) min-w-[8rem]',
+            'origin-(--radix-select-content-transform-origin)',
+            'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+            'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
+            'data-[side=top]:slide-in-from-bottom-2',
+            'data-[side=right]:slide-in-from-left-2',
+            'data-[side=bottom]:slide-in-from-top-2',
+            'data-[side=left]:slide-in-from-right-2',
+          ],
+          position === 'popper' &&
+            'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
+          className
+        )}
+        position={position}
+        {...props}
+      >
+        <SelectScrollUpButton />
+        <SelectPrimitive.Viewport
+          className={cn(
+            'p-1',
+            position === 'popper' &&
+              'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1'
+          )}
+        >
+          {children}
+        </SelectPrimitive.Viewport>
+        <SelectScrollDownButton />
+      </SelectPrimitive.Content>
+    </SelectPrimitive.Portal>
+  );
+}
+
+function SelectLabel({ className, ...props }: React.ComponentProps<typeof SelectPrimitive.Label>) {
+  return (
+    <SelectPrimitive.Label
+      data-slot="select-label"
+      className={cn('text-muted-foreground px-2 py-1.5 text-xs', className)}
+      {...props}
+    />
+  );
+}
+
+function SelectItem({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Item>) {
+  return (
+    <SelectPrimitive.Item
+      data-slot="select-item"
+      className={cn(
+        [
+          'relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none',
+          'cursor-pointer disabled:cursor-not-allowed',
+          'focus:bg-accent focus:text-accent-foreground',
+          'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+          '*:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2',
+          "[&_svg:not([class*='text-'])]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        ],
+        className
+      )}
+      {...props}
+    >
+      <span className="absolute right-2 flex size-3.5 items-center justify-center">
+        <SelectPrimitive.ItemIndicator>
+          <CheckIcon className="size-4" weight="bold" />
+        </SelectPrimitive.ItemIndicator>
+      </span>
+      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    </SelectPrimitive.Item>
+  );
+}
+
+function SelectSeparator({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Separator>) {
+  return (
+    <SelectPrimitive.Separator
+      data-slot="select-separator"
+      className={cn('bg-border pointer-events-none -mx-1 my-1 h-px', className)}
+      {...props}
+    />
+  );
+}
+
+function SelectScrollUpButton({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.ScrollUpButton>) {
+  return (
+    <SelectPrimitive.ScrollUpButton
+      data-slot="select-scroll-up-button"
+      className={cn('flex cursor-default items-center justify-center py-1', className)}
+      {...props}
+    >
+      <CaretUpIcon className="size-4" weight="bold" />
+    </SelectPrimitive.ScrollUpButton>
+  );
+}
+
+function SelectScrollDownButton({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.ScrollDownButton>) {
+  return (
+    <SelectPrimitive.ScrollDownButton
+      data-slot="select-scroll-down-button"
+      className={cn('flex cursor-default items-center justify-center py-1', className)}
+      {...props}
+    >
+      <CaretDownIcon className="size-4" weight="bold" />
+    </SelectPrimitive.ScrollDownButton>
+  );
+}
+
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectScrollDownButton,
+  SelectScrollUpButton,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+};
+</file>
+
+<file path="components/ui/sonner.tsx">
+'use client';
+
+import { useTheme } from 'next-themes';
+
+import { Toaster as Sonner, ToasterProps } from 'sonner';
+
+import { WarningIcon } from '@phosphor-icons/react/dist/ssr';
+
+const Toaster = ({ ...props }: ToasterProps) => {
+  const { theme = 'system' } = useTheme();
+
+  return (
+    <Sonner
+      theme={theme as ToasterProps['theme']}
+      className="toaster group"
+      position="top-center"
+      icons={{
+        warning: <WarningIcon weight="bold" />,
+      }}
+      style={
+        {
+          '--normal-bg': 'var(--popover)',
+          '--normal-text': 'var(--popover-foreground)',
+          '--normal-border': 'var(--border)',
+        } as React.CSSProperties
+      }
+      {...props}
+    />
+  );
+};
+
+export { Toaster };
+</file>
+
+<file path="components/ui/toggle.tsx">
+'use client';
+
+import * as React from 'react';
+
+import { type VariantProps, cva } from 'class-variance-authority';
+
+import * as TogglePrimitive from '@radix-ui/react-toggle';
+
+import { cn } from '@/lib/utils';
+
+const toggleVariants = cva(
+  [
+    'inline-flex items-center justify-center gap-2 rounded-full',
+    'text-sm font-medium whitespace-nowrap',
+    'cursor-pointer outline-none transition-[color,border,background-color]',
+    'focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring',
+    'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive',
+    'disabled:pointer-events-none disabled:opacity-50 disabled:not-allowed',
+    'data-[state=on]:bg-button-selected data-[state=on]:border-button-border-selected',
+    "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",
+  ],
+  {
+    variants: {
+      variant: {
+        default:
+          'bg-button hover:bg-muted focus:bg-muted hover:text-muted-foreground focus:text-muted-foreground',
+        primary:
+          'text-fg1 bg-button hover:bg-button-hover focus:bg-button-hover data-[state=off]:bg-button-primary hover:data-[state=off]:bg-button-hover data-[state=off]:text-button-primary-foreground',
+        secondary:
+          'text-fg1 bg-button hover:bg-button-hover focus:bg-button-hover data-[state=on]:bg-button-secondary hover:data-[state=on]:bg-button-secondary data-[state=on]:text-button-secondary-foreground',
+        outline: [
+          'border border-button-border bg-button text-button-foreground',
+          'hover:bg-background focus:bg-background',
+        ],
+      },
+      size: {
+        default: 'h-9 px-2 min-w-9',
+        sm: 'h-8 px-1.5 min-w-8',
+        lg: 'h-10 px-2.5 min-w-10',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+      size: 'default',
+    },
+  }
+);
+
+function Toggle({
+  className,
+  variant,
+  size,
+  ...props
+}: React.ComponentProps<typeof TogglePrimitive.Root> & VariantProps<typeof toggleVariants>) {
+  return (
+    <TogglePrimitive.Root
+      data-slot="toggle"
+      className={cn(toggleVariants({ variant, size, className }))}
+      {...props}
+    />
+  );
+}
+
+export { Toggle, toggleVariants };
+</file>
+
+<file path="components/welcome.tsx">
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+interface WelcomeProps {
+  disabled: boolean;
+  startButtonText: string;
+  startChatButtonText: string;
+  onStartCall: () => void;
+  onStartChat?: () => void;
+}
+
+export const Welcome = ({
+  disabled,
+  startButtonText,
+  startChatButtonText,
+  onStartCall,
+  onStartChat,
+  ref,
+}: React.ComponentProps<'div'> & WelcomeProps) => {
+  return (
+    <section
+      ref={ref}
+      inert={disabled}
+      className={cn(
+        'bg-background fixed inset-0 mx-auto flex h-svh flex-col items-center justify-center text-center',
+        disabled ? 'z-10' : 'z-20'
+      )}
+    >
+      <svg
+        width="64"
+        height="64"
+        viewBox="0 0 64 64"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="text-fg0 mb-4 size-16"
+      >
+        <path
+          d="M15 24V40C15 40.7957 14.6839 41.5587 14.1213 42.1213C13.5587 42.6839 12.7956 43 12 43C11.2044 43 10.4413 42.6839 9.87868 42.1213C9.31607 41.5587 9 40.7957 9 40V24C9 23.2044 9.31607 22.4413 9.87868 21.8787C10.4413 21.3161 11.2044 21 12 21C12.7956 21 13.5587 21.3161 14.1213 21.8787C14.6839 22.4413 15 23.2044 15 24ZM22 5C21.2044 5 20.4413 5.31607 19.8787 5.87868C19.3161 6.44129 19 7.20435 19 8V56C19 56.7957 19.3161 57.5587 19.8787 58.1213C20.4413 58.6839 21.2044 59 22 59C22.7956 59 23.5587 58.6839 24.1213 58.1213C24.6839 57.5587 25 56.7957 25 56V8C25 7.20435 24.6839 6.44129 24.1213 5.87868C23.5587 5.31607 22.7956 5 22 5ZM32 13C31.2044 13 30.4413 13.3161 29.8787 13.8787C29.3161 14.4413 29 15.2044 29 16V48C29 48.7957 29.3161 49.5587 29.8787 50.1213C30.4413 50.6839 31.2044 51 32 51C32.7956 51 33.5587 50.6839 34.1213 50.1213C34.6839 49.5587 35 48.7957 35 48V16C35 15.2044 34.6839 14.4413 34.1213 13.8787C33.5587 13.3161 32.7956 13 32 13ZM42 21C41.2043 21 40.4413 21.3161 39.8787 21.8787C39.3161 22.4413 39 23.2044 39 24V40C39 40.7957 39.3161 41.5587 39.8787 42.1213C40.4413 42.6839 41.2043 43 42 43C42.7957 43 43.5587 42.6839 44.1213 42.1213C44.6839 41.5587 45 40.7957 45 40V24C45 23.2044 44.6839 22.4413 44.1213 21.8787C43.5587 21.3161 42.7957 21 42 21ZM52 17C51.2043 17 50.4413 17.3161 49.8787 17.8787C49.3161 18.4413 49 19.2044 49 20V44C49 44.7957 49.3161 45.5587 49.8787 46.1213C50.4413 46.6839 51.2043 47 52 47C52.7957 47 53.5587 46.6839 54.1213 46.1213C54.6839 45.5587 55 44.7957 55 44V20C55 19.2044 54.6839 18.4413 54.1213 17.8787C53.5587 17.3161 52.7957 17 52 17Z"
+          fill="currentColor"
+        />
+      </svg>
+
+      <p className="text-fg1 max-w-prose pt-1 leading-6 font-medium">
+        Chat live with your voice AI agent
+      </p>
+      <Button variant="primary" size="lg" onClick={onStartCall} className="mt-6 w-64 font-mono">
+        {startButtonText}
+      </Button>
+      <div className="mt-2">
+        <Button variant="secondary" size="lg" onClick={onStartChat} className="w-64 font-mono">
+          {startChatButtonText}
+        </Button>
+      </div>
+      <footer className="fixed bottom-5 left-0 z-20 flex w-full items-center justify-center">
+        <p className="text-fg1 max-w-prose pt-1 text-xs leading-5 font-normal text-pretty md:text-sm">
+          Ready to start your voice conversation with your LangGraph agent
+        </p>
+      </footer>
+    </section>
+  );
+};
+</file>
+
+<file path="eslint.config.mjs">
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+import { FlatCompat } from '@eslint/eslintrc';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+
+const eslintConfig = [
+  ...compat.extends(
+    'next/core-web-vitals',
+    'next/typescript',
+    'plugin:import/recommended',
+    'prettier',
+    'plugin:prettier/recommended'
+  ),
+];
+
+export default eslintConfig;
+</file>
+
+<file path="hooks/useChatAndTranscription.ts">
+import { useMemo } from 'react';
+
+import {
+  type ReceivedChatMessage,
+  type TextStreamData,
+  useChat,
+  useRoomContext,
+  useTranscriptions,
+} from '@livekit/components-react';
+
+import { transcriptionToChatMessage } from '@/lib/utils';
+
+export default function useChatAndTranscription() {
+  const transcriptions: TextStreamData[] = useTranscriptions();
+  const chat = useChat();
+  const room = useRoomContext();
+
+  const mergedTranscriptions = useMemo(() => {
+    const merged: Array<ReceivedChatMessage> = [
+      ...transcriptions.map((transcription) => transcriptionToChatMessage(transcription, room)),
+      ...chat.chatMessages,
+    ];
+    return merged.sort((a, b) => a.timestamp - b.timestamp);
+  }, [transcriptions, chat.chatMessages, room]);
+
+  return { messages: mergedTranscriptions, send: chat.send };
+}
+</file>
+
+<file path="hooks/useConnectionDetails.ts">
+import { useCallback, useEffect, useState } from 'react';
+
+import { decodeJwt } from 'jose';
+
+import { ConnectionDetails } from '@/app/api/connection-details/route';
+import { AppConfig } from '@/lib/types';
+
+const ONE_MINUTE_IN_MILLISECONDS = 60 * 1000;
+
+export default function useConnectionDetails(appConfig: AppConfig) {
+  // Generate room connection details, including:
+  //   - A random Room name
+  //   - A random Participant name
+  //   - An Access Token to permit the participant to join the room
+  //   - The URL of the LiveKit server to connect to
+  //
+  // In real-world application, you would likely allow the user to specify their
+  // own participant name, and possibly to choose from existing rooms to join.
+
+  const [connectionDetails, setConnectionDetails] = useState<ConnectionDetails | null>(null);
+
+  const fetchConnectionDetails = useCallback(async () => {
+    setConnectionDetails(null);
+    const url = new URL(
+      process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT ?? '/api/connection-details',
+      window.location.origin
+    );
+
+    let data: ConnectionDetails;
+    try {
+      const res = await fetch(url.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Sandbox-Id': appConfig.sandboxId ?? '',
+        },
+        body: JSON.stringify({
+          room_config: appConfig.agentName
+            ? {
+                agents: [{ agent_name: appConfig.agentName }],
+              }
+            : undefined,
+        }),
+      });
+      data = await res.json();
+    } catch (error) {
+      console.error('Error fetching connection details:', error);
+      throw new Error('Error fetching connection details!');
+    }
+
+    setConnectionDetails(data);
+    return data;
+  }, []);
+
+  useEffect(() => {
+    fetchConnectionDetails();
+  }, [fetchConnectionDetails]);
+
+  const isConnectionDetailsExpired = useCallback(() => {
+    const token = connectionDetails?.participantToken;
+    if (!token) {
+      return true;
+    }
+
+    const jwtPayload = decodeJwt(token);
+    if (!jwtPayload.exp) {
+      return true;
+    }
+    const expiresAt = new Date(jwtPayload.exp - ONE_MINUTE_IN_MILLISECONDS);
+
+    const now = new Date();
+    return expiresAt >= now;
+  }, [connectionDetails?.participantToken]);
+
+  const existingOrRefreshConnectionDetails = useCallback(async () => {
+    if (isConnectionDetailsExpired() || !connectionDetails) {
+      return fetchConnectionDetails();
+    } else {
+      return connectionDetails;
+    }
+  }, [connectionDetails, fetchConnectionDetails, isConnectionDetailsExpired]);
+
+  return {
+    connectionDetails,
+    refreshConnectionDetails: fetchConnectionDetails,
+    existingOrRefreshConnectionDetails,
+  };
+}
+</file>
+
+<file path="hooks/useDebug.ts">
+import * as React from 'react';
+
+import { LogLevel, setLogLevel } from 'livekit-client';
+
+import { useRoomContext } from '@livekit/components-react';
+
+export const useDebugMode = (options: { logLevel?: LogLevel; enabled?: boolean } = {}) => {
+  const room = useRoomContext();
+  const logLevel = options.logLevel ?? 'debug';
+  const enabled = options.enabled ?? true;
+
+  React.useEffect(() => {
+    if (!enabled) {
+      setLogLevel('silent');
+      return;
+    }
+
+    setLogLevel(logLevel ?? 'debug');
+
+    // @ts-expect-error
+    window.__lk_room = room;
+
+    return () => {
+      // @ts-expect-error
+      window.__lk_room = undefined;
+      setLogLevel('silent');
+    };
+  }, [room, enabled, logLevel]);
+};
+</file>
+
+<file path="hooks/useLangGraphChat.ts">
+'use client';
+
+import { useMemo } from 'react';
+
+import type { Message } from '@langchain/langgraph-sdk';
+import { useStream } from '@langchain/langgraph-sdk/react';
+import type { ReceivedChatMessage } from '@livekit/components-react';
+
+type UseLangGraphChatParams = {
+  apiUrl?: string;
+  assistantId?: string;
+  messagesKey?: string;
+};
+
+type UseLangGraphChatResult = {
+  messages: ReceivedChatMessage[];
+  send: (text: string) => Promise<void>;
+};
+
+/**
+ * Lightweight adapter around LangGraph useStream that presents
+ * messages and send() in the same shape our chat UI expects.
+ */
+export default function useLangGraphChat(params: UseLangGraphChatParams): UseLangGraphChatResult {
+  const { apiUrl, assistantId, messagesKey = 'messages' } = params;
+
+  const stream = useStream<{ messages: Message[] }>({
+    apiUrl,
+    assistantId: assistantId ?? '',
+    messagesKey,
+  });
+
+  const mappedMessages = useMemo<ReceivedChatMessage[]>(() => {
+    const now = Date.now();
+    return (stream.messages ?? []).map((m, idx) => {
+      const isHuman = (m as any).type === 'human';
+      return {
+        id: (m as any).id ?? `${now}-${idx}`,
+        message: String((m as any).content ?? ''),
+        timestamp: now + idx,
+        from: {
+          identity: isHuman ? 'you' : 'agent',
+          name: isHuman ? 'You' : 'Agent',
+          isLocal: isHuman,
+        } as any,
+      } as unknown as ReceivedChatMessage;
+    });
+  }, [stream.messages]);
+
+  async function send(text: string) {
+    if (!text || !assistantId || !apiUrl) return;
+    const newMessage = { type: 'human', content: text } as any;
+    stream.submit({ messages: [newMessage] });
+  }
+
+  return { messages: mappedMessages, send };
+}
+</file>
+
+<file path="lib/types.ts">
+import type { TranscriptionSegment } from 'livekit-client';
+
+export interface CombinedTranscription extends TranscriptionSegment {
+  role: 'assistant' | 'user';
+  receivedAtMediaTimestamp: number;
+  receivedAt: number;
+}
+export type ThemeMode = 'dark' | 'light' | 'system';
+
+export interface AppConfig {
+  pageTitle: string;
+  pageDescription: string;
+  appName: string;
+
+  supportsChatInput: boolean;
+  supportsVideoInput: boolean;
+  supportsScreenShare: boolean;
+  isPreConnectBufferEnabled: boolean;
+
+  logo: string;
+  startButtonText: string;
+  startChatButtonText: string;
+  accent?: string;
+  logoDark?: string;
+  accentDark?: string;
+
+  sandboxId?: string;
+  agentName?: string;
+}
+
+export interface SandboxConfig {
+  [key: string]:
+    | { type: 'string'; value: string }
+    | { type: 'number'; value: number }
+    | { type: 'boolean'; value: boolean }
+    | null;
+}
+</file>
+
+<file path="lib/utils.ts">
+import { cache } from 'react';
+
+import { type ClassValue, clsx } from 'clsx';
+import { Room } from 'livekit-client';
+import { twMerge } from 'tailwind-merge';
+
+import type { ReceivedChatMessage, TextStreamData } from '@livekit/components-react';
+
+import { APP_CONFIG_DEFAULTS } from '@/app-config';
+
+import type { AppConfig, SandboxConfig } from './types';
+
+export const CONFIG_ENDPOINT = process.env.NEXT_PUBLIC_APP_CONFIG_ENDPOINT;
+export const SANDBOX_ID = process.env.SANDBOX_ID;
+
+export const THEME_STORAGE_KEY = 'theme-mode';
+export const THEME_MEDIA_QUERY = '(prefers-color-scheme: dark)';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export function transcriptionToChatMessage(
+  textStream: TextStreamData,
+  room: Room
+): ReceivedChatMessage {
+  return {
+    id: textStream.streamInfo.id,
+    timestamp: textStream.streamInfo.timestamp,
+    message: textStream.text,
+    from:
+      textStream.participantInfo.identity === room.localParticipant.identity
+        ? room.localParticipant
+        : Array.from(room.remoteParticipants.values()).find(
+            (p) => p.identity === textStream.participantInfo.identity
+          ),
+  };
+}
+
+// https://react.dev/reference/react/cache#caveats
+// > React will invalidate the cache for all memoized functions for each server request.
+export const getAppConfig = cache(async (headers: Headers): Promise<AppConfig> => {
+  if (CONFIG_ENDPOINT) {
+    const sandboxId = SANDBOX_ID ?? headers.get('x-sandbox-id') ?? '';
+
+    try {
+      if (!sandboxId) {
+        throw new Error('Sandbox ID is required');
+      }
+
+      const response = await fetch(CONFIG_ENDPOINT, {
+        cache: 'no-store',
+        headers: { 'X-Sandbox-ID': sandboxId },
+      });
+
+      const remoteConfig: SandboxConfig = await response.json();
+      const config: AppConfig = { sandboxId, ...APP_CONFIG_DEFAULTS };
+
+      for (const [key, entry] of Object.entries(remoteConfig)) {
+        if (entry === null) continue;
+        // Only include app config entries that are declared in defaults and, if set,
+        // share the same primitive type as the default value.
+        if (
+          (key in APP_CONFIG_DEFAULTS &&
+            APP_CONFIG_DEFAULTS[key as keyof AppConfig] === undefined) ||
+          (typeof config[key as keyof AppConfig] === entry.type &&
+            typeof config[key as keyof AppConfig] === typeof entry.value)
+        ) {
+          // @ts-expect-error I'm not sure quite how to appease TypeScript, but we've thoroughly checked types above
+          config[key as keyof AppConfig] = entry.value as AppConfig[keyof AppConfig];
+        }
+      }
+
+      return config;
+    } catch (error) {
+      console.error('ERROR: getAppConfig() - lib/utils.ts', error);
+    }
+  }
+
+  return APP_CONFIG_DEFAULTS;
+});
+</file>
+
+<file path="LICENSE">
+MIT License
+
+Copyright (c) 2025 Muhammad Ahmad
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</file>
+
+<file path="next.config.ts">
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  /* config options here */
+};
+
+export default nextConfig;
+</file>
+
+<file path="package.json">
+{
+  "name": "langgraph-voice-call-agent-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.72",
+    "@langchain/langgraph-sdk": "^0.0.109",
+    "@livekit/components-react": "^2.9.14",
+    "@livekit/protocol": "^1.40.0",
+    "@phosphor-icons/react": "^2.1.8",
+    "@radix-ui/react-label": "^2.1.7",
+    "@radix-ui/react-scroll-area": "^1.2.9",
+    "@radix-ui/react-select": "^2.2.5",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-toggle": "^1.1.9",
+    "@radix-ui/react-toolbar": "^1.1.10",
+    "buffer-image-size": "^0.6.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "geist": "^1.4.2",
+    "jose": "^6.0.12",
+    "livekit-client": "^2.15.5",
+    "livekit-server-sdk": "^2.13.2",
+    "mime": "^4.0.7",
+    "motion": "^12.16.0",
+    "next": "15.4.7",
+    "next-themes": "^0.4.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sonner": "^2.0.3",
+    "tailwind-merge": "^3.3.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@trivago/prettier-plugin-sort-imports": "^5.2.2",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.4.7",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prettier": "^5.5.0",
+    "prettier": "^3.4.2",
+    "prettier-plugin-tailwindcss": "^0.6.11",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1.3.0",
+    "typescript": "^5"
+  }
+}
+</file>
+
+<file path="postcss.config.mjs">
+const config = {
+  plugins: ['@tailwindcss/postcss'],
+};
+
+export default config;
+</file>
+
+<file path="README.md">
+# LangGraph Voice Call Agent Web
+
+A real-time voice/call AI agent UI that lets you talk to a LangGraph agent over LiveKit — similar to "voice mode" experiences in ChatGPT Voice, OpenAI Realtime API sessions, and Gemini Live. This repo demonstrates adapting a LangGraph agent into a full-duplex, low-latency voice assistant using LiveKit's real-time communication infrastructure.
+
+This frontend provides a seamless interface for both text chat and voice calls with your LangGraph agent, built with Next.js and LiveKit's real-time communication platform.
+
+
+### Features
+
+- Real-time voice interaction with LangGraph agents
+- Audio visualization and level monitoring
+- Light/dark theme switching with system preference detection
+- Customizable branding, colors, and UI text via configuration
+
+This application is built with Next.js and LiveKit's real-time communication platform, providing a production-ready interface for your LangGraph voice agent.
+
+### Project structure
+
+```
+langgraph-voice-call-agent-web/
+├── app/
+│   ├── (app)/
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── api/
+│   │   └── connection-details/
+│   │       └── route.ts
+│   ├── globals.css
+│   └── layout.tsx
+├── components/
+│   ├── livekit/
+│   │   ├── agent-control-bar/
+│   │   │   ├── agent-control-bar.tsx
+│   │   │   └── hooks/
+│   │   │       ├── use-agent-control-bar.ts
+│   │   │       └── use-publish-permissions.ts
+│   │   ├── agent-tile.tsx
+│   │   ├── avatar-tile.tsx
+│   │   ├── chat/
+│   │   │   ├── chat-entry.tsx
+│   │   │   └── chat-message-view.tsx
+│   │   ├── device-select.tsx
+│   │   ├── media-tiles.tsx
+│   │   ├── track-toggle.tsx
+│   │   └── video-tile.tsx
+│   ├── app.tsx
+│   ├── provider.tsx
+│   ├── session-view.tsx
+│   ├── theme-toggle.tsx
+│   └── welcome.tsx
+├── hooks/
+│   ├── useChatAndTranscription.ts
+│   ├── useConnectionDetails.ts
+│   ├── useDebug.ts
+│   └── useLangGraphChat.ts
+├── lib/
+│   ├── types.ts
+│   └── utils.ts
+├── public/
+└── package.json
+```
+
+## Getting started
+
+This application is designed to work with your existing LiveKit backend and LangGraph agent. You'll need:
+
+1. **LiveKit Server** - Your backend that provides real-time communication services
+2. **LangGraph Agent** - Your AI agent that processes conversations
+3. **Environment Configuration** - API keys and endpoints
+
+```bash
+git clone https://github.com/ahmad2b/langgraph-voice-call-agent-web.git
+cd langgraph-voice-call-agent-web
+```
+
+Then run the app with:
+
+```bash
+npm install
+npm run dev
+```
+
+And open http://localhost:3000 in your browser.
+
+You'll also need to configure your LangGraph agent to work with LiveKit's real-time communication platform. The application supports both text chat and voice interactions through the same interface.
+
+## Configuration
+
+This application is designed to work seamlessly with your LangGraph agent through LiveKit's real-time communication platform. You can easily configure it to work with different types of inputs and outputs:
+
+#### Example: App configuration (`app-config.ts`)
+
+```ts
+export const APP_CONFIG_DEFAULTS = {
+  appName: 'LangGraph Voice Agent',
+  pageTitle: 'LangGraph Voice Call Agent',
+  pageDescription:
+    "A real-time voice/call AI agent that lets you talk to a LangGraph agent over LiveKit's real-time communication platform",
+
+  supportsChatInput: true,
+  supportsVideoInput: false,
+  supportsScreenShare: false,
+  isPreConnectBufferEnabled: true,
+
+  logo: '/your-logo.svg',
+  accent: '#002cf2',
+  logoDark: '/your-logo-dark.svg',
+  accentDark: '#1fd5f9',
+  startButtonText: 'Start Voice Call',
+  startChatButtonText: 'Start Chat',
+
+  agentName: undefined,
+};
+```
+
+You can update these values in [`app-config.ts`](./app-config.ts) to customize branding, features, and UI text for your deployment.
+
+#### Environment Variables
+
+You'll also need to configure your LiveKit credentials in `.env.local` (copy `.env.example` if you don't have one):
+
+```env
+LIVEKIT_API_KEY=your_livekit_api_key
+LIVEKIT_API_SECRET=your_livekit_api_secret
+LIVEKIT_URL=https://your-livekit-server-url
+```
+
+## How it works (high level)
+
+1. User presses Start Voice Call → the app primes the microphone and connects to a LiveKit room using server-issued credentials.
+2. The `Room` is provided via React context. The UI renders the agent’s audio visualization, messages, and a control bar.
+3. In call mode, messages are a merge of LiveKit chat and live transcriptions; in chat-only mode, messages come from the LangGraph SDK stream.
+
+## Token issuance (server)
+
+The API route at `app/api/connection-details/route.ts` issues a 15-minute LiveKit access token and returns:
+
+```ts
+type ConnectionDetails = {
+  serverUrl: string;
+  roomName: string;
+  participantName: string;
+  participantToken: string;
+};
+```
+
+The route validates required env vars, generates a random room and identity, and returns the `serverUrl` and `participantToken`. If `agentName` is provided in the request body, it is added to the room configuration.
+
+## Runtime flow (concrete)
+
+- `components/app.tsx`
+  - Creates a `Room` (livekit-client) and, when starting a call from a disconnected state, does two things in parallel:
+    1) `setMicrophoneEnabled(true, { preConnectBuffer })`
+    2) `room.connect(serverUrl, participantToken)` (credentials come from `useConnectionDetails`)
+  - Subscribes to `RoomEvent.MediaDevicesError` and `RoomEvent.Disconnected` for user feedback and UI reset.
+
+- `hooks/useConnectionDetails.ts`
+  - Fetches `{ serverUrl, participantToken }` from `NEXT_PUBLIC_CONN_DETAILS_ENDPOINT` or the local API route.
+  - Sends `X-Sandbox-Id` when available.
+  - Proactively refreshes credentials when near expiry (based on JWT exp).
+
+- `components/session-view.tsx`
+  - Uses `useVoiceAssistant()` (from `@livekit/components-react`) to monitor the agent and access its audio/video tracks.
+  - In call mode, merges LiveKit transcriptions + chat (`useTranscriptions` + `useChat` via `useChatAndTranscription`).
+  - Includes a safety timeout to disconnect if the agent doesn’t initialize promptly.
+
+- `components/livekit/agent-control-bar/*`
+  - Media controls: mic/cam/screen toggles (`useTrackToggle`), device selection (`useMediaDeviceSelect`), and persistence of user choices (`usePersistentUserChoices`).
+
+- `components/livekit/media-tiles.tsx`
+  - Renders the agent’s audio visualization and handles layout transitions.
+
+## Minimal vs extended setup
+
+Minimum you need to place a voice call:
+- LiveKit env vars set and the `/api/connection-details` route available.
+- Create a `Room`, call `setMicrophoneEnabled(true)`, then `room.connect(serverUrl, participantToken)`.
+- Render `<RoomAudioRenderer />` and gate autoplay with `<StartAudio />`.
+- Provide the `Room` via context and render a basic visualizer (e.g., `BarVisualizer` from `useVoiceAssistant`).
+
+Extended features included here:
+- Pre-connect mic buffer toggle (`isPreConnectBufferEnabled`).
+- Unified message surface (merged transcriptions + chat) during calls.
+- Control bar with device selection, permission-aware toggles, and persistence.
+- Media tiles with animated layout.
+
+## Features
+
+### **Current Capabilities**
+
+- **Voice Calls**: Full-duplex voice conversations with your LangGraph agent
+- **Text Chat**: Direct text messaging with the agent
+- **Real-time Transcription**: Live speech-to-text conversion
+- **Responsive Design**: Works on desktop and mobile devices
+- **Theme Support**: Light/dark mode with system preference detection
+
+### **Architecture**
+
+- **Frontend**: Next.js with TypeScript and Tailwind CSS
+- **Voice Infrastructure**: LiveKit's real-time communication platform
+- **Agent Integration**: Direct connection to your LiveKit backend
+- **State Management**: React hooks for chat and transcription
+
+## Contributing
+
+This project is open source and we welcome contributions! Please open a PR or issue through GitHub.
+
+## Connect
+
+I’m actively exploring voice-first and real-time agents. If you’re building in this space or experimenting real-time AI infra, I'd love to trade ideas, collaborate or help out.
+
+- GitHub: [ahmad2b](https://github.com/ahmad2b)  
+- Twitter/X: [@mahmad2b](https://x.com/mahmad2b)  
+- LinkedIn: [Ahmad Shaukat](https://www.linkedin.com/in/ahmad2b)  
+- Book a chat: [cal.com/mahmad2b/15min](https://cal.com/mahmad2b/15min)
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+</file>
+
+</files>
